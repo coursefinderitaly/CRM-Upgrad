@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         String   @default("Counsellor") // Counsellor, Documentation, Application, Visa, Manager, Super Admin
+  avatar       String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  leads        Lead[]
+  tasks        Task[]
+}
+
+model Lead {
+  id                   String   @id @default(uuid())
+  leadId               String   @unique // e.g. L2025100501
+  studentName          String
+  phone                String
+  email                String
+  dob                  String?  // e.g. "12 May 2000"
+  address              String?  // e.g. "Indore, Madhya Pradesh"
+  nationality          String?  @default("Indian")
+  countryInterest      String   // Italy, Germany, Canada, UK, Australia, etc.
+  courseInterest       String   // MSc Computer Science, MBA, etc.
+  intake               String?  @default("Sept 2026")
+  budget               String?  @default("€ 8,000 – 15,000")
+  universityType       String?  @default("Public / Private")
+  preferredCity        String?  @default("Rome / Milan")
+  leadSource           String   // Google Ads, Website, Referral, Instagram, Justdial, Others
+  lastActivity         String   // e.g. "05 Oct 2025"
+  nextFollowUp         String   // e.g. "10 Oct 2025"
+  nextFollowUpTime     String?  @default("11:00 AM")
+  nextFollowUpTask     String?  @default("Call to discuss university options")
+  status               String   @default("New Lead") // New Lead, Contacted, Interested, Counselling, Enrolled, Follow-up, On Hold, Lost, Transferred
+  avatarUrl            String?
+  counsellorId         String?
+  counsellor           User?    @relation(fields: [counsellorId], references: [id])
+  notes                String?
+  
+  // Academic details
+  tenthBoard           String?  @default("CBSE")
+  tenthPercentage      String?  @default("86.4%")
+  tenthYear            String?  @default("2016")
+  twelfthBoard         String?  @default("CBSE")
+  twelfthPercentage    String?  @default("84.2%")
+  twelfthYear          String?  @default("2018")
+  graduationDegree     String?  @default("B.Tech Computer Science")
+  graduationUniversity String?  @default("RGPV Bhopal")
+  graduationCgpa       String?  @default("8.2 CGPA")
+  graduationYear       String?  @default("2022")
+  backlogs             String?  @default("0")
+  educationGaps        String?  @default("None")
+
+  // Test scores
+  testType             String?  @default("IELTS")
+  testOverallScore     String?  @default("7.5")
+  testDate             String?  @default("15 Jan 2025")
+  testScoresDetails    String?  @default("L: 8.0, R: 7.5, W: 7.0, S: 7.5")
+  testResultStatus     String?  @default("Passed")
+
+  // Stage flags
+  currentStage         String   @default("New Lead") // New Lead -> Counselling -> Enrolled -> Documentation -> Application
+  isEnrolled           Boolean  @default(false)
+  isTransferredToDocs  Boolean  @default(false)
+  enrolledAt           DateTime?
+  transferredAt        DateTime?
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  tasks                Task[]
+  followUps            FollowUp[]
+  counsellingSessions  CounsellingSession[]
+  documents            Document[]
+  applications         Application[]
+  activityLogs         ActivityLog[]
+}
+
+model Student {
+  id           String   @id @default(uuid())
+  studentId    String   @unique // e.g. STU20251001
+  leadId       String?  @unique
+  name         String
+  email        String
+  phone        String
+  country      String
+  course       String
+  intake       String
+  stage        String   @default("Enrolled") // Enrolled, Documentation, Application, Visa, Departure
+  enrolledDate DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model Task {
+  id          String   @id @default(uuid())
+  title       String   // e.g. "Call Rahul Sharma"
+  subtitle    String   // e.g. "Discuss documents list"
+  time        String   // e.g. "11:00 AM"
+  dueDate     String   // e.g. "10 Oct 2025"
+  dueStatus   String   // "Due Now", "Upcoming", "Completed", "Overdue"
+  completed   Boolean  @default(false)
+  priority    String   @default("Medium") // Low, Medium, High
+  leadId      String?
+  lead        Lead?    @relation(fields: [leadId], references: [id])
+  assignedToId String?
+  assignedTo  User?    @relation(fields: [assignedToId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model FollowUp {
+  id          String   @id @default(uuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  studentName String
+  date        String
+  time        String
+  task        String
+  reminder    String   @default("15 minutes before")
+  status      String   @default("Scheduled") // Scheduled, Completed, Missed, Rescheduled
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model CounsellingSession {
+  id              String   @id @default(uuid())
+  leadId          String
+  lead            Lead     @relation(fields: [leadId], references: [id])
+  date            String
+  time            String
+  counsellorName  String   @default("Neha Sharma")
+  notes           String
+  recommendations String?
+  concerns        String?
+  outcome         String?  // Interested, Enrolled, Next Session, Follow-up
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Document {
+  id          String   @id @default(uuid())
+  leadId      String
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  name        String   // Passport, 10th Marksheet, 12th Marksheet, SOP, LOR, CV, etc.
+  category    String   @default("Academic") // Academic, Identity, Financial, Language, Visa
+  status      String   @default("Pending") // Pending, Requested, Received, Under Verification, Approved, Rejected
+  fileUrl     String?
+  notes       String?
+  verifiedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model University {
+  id             String   @id @default(uuid())
+  name           String
+  country        String
+  city           String
+  ranking        String?
+  courses        String
+  intake         String
+  tuitionFee     String
+  universityType String   @default("Public") // Public, Private
+  requirements   String?
+  createdAt      DateTime @default(now())
+}
+
+model Application {
+  id             String   @id @default(uuid())
+  leadId         String
+  lead           Lead     @relation(fields: [leadId], references: [id])
+  universityName String
+  course         String
+  intake         String
+  status         String   @default("Under Review") // Draft, Submitted, Under Review, Conditional Offer, Unconditional Offer, Rejected, Accepted
+  referenceNo    String?
+  submissionDate String?
+  offerType      String?  // Conditional, Unconditional, None
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  title     String
+  message   String
+  type      String   @default("info") // lead, task, followup, document, system
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+}
+
+model ActivityLog {
+  id        String   @id @default(uuid())
+  leadId    String?
+  lead      Lead?    @relation(fields: [leadId], references: [id])
+  userId    String?
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+}
