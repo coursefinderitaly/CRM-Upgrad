@@ -8,15 +8,11 @@ import {
   Award,
   History,
   CheckSquare,
-  Calendar,
-  MessageSquare,
-  BarChart3,
   PlusSquare,
   Mail,
   UserPlus,
   FileText,
   PhoneCall,
-  Menu,
   X,
 } from 'lucide-react';
 
@@ -45,10 +41,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'enrolment', label: 'Enrolment', icon: Award },
     { id: 'follow-ups', label: 'Follow-ups', icon: History },
     { id: 'tasks', label: 'Tasks', icon: CheckSquare },
-    { id: 'calendar', label: 'Calendar', icon: Calendar },
-    { id: 'communication', label: 'Communication', icon: MessageSquare },
-    { id: 'reports', label: 'Reports', icon: BarChart3 },
   ];
+
 
   const quickLinks = [
     { id: 'add-lead', label: 'Add New Lead', icon: PlusSquare },

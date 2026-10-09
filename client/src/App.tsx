@@ -8,10 +8,6 @@ import { CounsellingView } from './views/CounsellingView';
 import { EnrolmentView } from './views/EnrolmentView';
 import { FollowUpsView } from './views/FollowUpsView';
 import { TasksView } from './views/TasksView';
-import { CalendarView } from './views/CalendarView';
-import { CommunicationView } from './views/CommunicationView';
-import { ReportsView } from './views/ReportsView';
-import { DocumentationView } from './views/DocumentationView';
 
 import { AddLeadModal } from './components/modals/AddLeadModal';
 import { EditLeadModal } from './components/modals/EditLeadModal';
@@ -280,7 +276,7 @@ export function App() {
               onToggleTask={handleToggleTask}
               onAddTask={() => setShowTaskModal(true)}
               onViewAllTasks={() => setCurrentRoute('tasks')}
-              onViewReports={() => setCurrentRoute('reports')}
+              onViewReports={() => handleTabChange('Counselling')}
               onOpenPhone={openPhone}
               onOpenWhatsApp={openWhatsApp}
               onOpenEmail={openEmail}
@@ -364,31 +360,8 @@ export function App() {
               onAddTask={() => setShowTaskModal(true)}
             />
           )}
-
-          {currentRoute === 'calendar' && (
-            <CalendarView
-              tasks={tasks}
-              onAddTask={() => setShowTaskModal(true)}
-            />
-          )}
-
-          {currentRoute === 'communication' && (
-            <CommunicationView
-              onOpenEmail={() => {
-                setModalTargetLead(selectedLead);
-                setShowEmailModal(true);
-              }}
-              onOpenWhatsApp={() => {
-                setModalTargetLead(selectedLead);
-                setShowWhatsAppModal(true);
-              }}
-            />
-          )}
-
-          {currentRoute === 'reports' && <ReportsView analytics={analytics} />}
-
-          {currentRoute === 'documentation' && <DocumentationView />}
         </main>
+
       </div>
 
       {/* Reusable Modals */}
