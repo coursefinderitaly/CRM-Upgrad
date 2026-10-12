@@ -33,6 +33,12 @@ import {
   deleteLead,
   updateLead,
 } from './services/api';
+import {
+  INITIAL_LEADS,
+  INITIAL_TASKS,
+  INITIAL_NOTIFICATIONS,
+  INITIAL_ANALYTICS,
+} from './services/mockData';
 import { AnalyticsData, Lead, NotificationItem, Task } from './types/crm';
 import { useWorkflow } from './context/WorkflowContext';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -64,14 +70,41 @@ export function App() {
     window.location.hash = route;
   };
 
-  // Data states
-  const [analytics, setAnalytics] = useState<AnalyticsData | undefined>();
-  const [leads, setLeads] = useState<Lead[]>([]);
-  const [tabCounts, setTabCounts] = useState<Record<string, number>>({});
+  // Data states initialized immediately with complete dataset so screens are NEVER blank
+  const [analytics, setAnalytics] = useState<AnalyticsData>(INITIAL_ANALYTICS);
+  const [leads, setLeads] = useState<Lead[]>(() => {
+    try {
+      const stored = localStorage.getItem('crm_leads_v2');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_LEADS;
+  });
+  const [tabCounts, setTabCounts] = useState<Record<string, number>>(() => ({
+    myLeads: INITIAL_LEADS.length,
+    counselling: INITIAL_LEADS.filter((l) => l.status === 'Counselling').length,
+    enrolled: INITIAL_LEADS.filter((l) => l.status === 'Enrolled' || l.isEnrolled).length,
+    transferred: INITIAL_LEADS.filter((l) => l.isTransferredToDocs).length,
+    onHold: INITIAL_LEADS.filter((l) => l.status === 'On Hold').length,
+    lost: INITIAL_LEADS.filter((l) => l.status === 'Lost').length,
+  }));
   const [activeTab, setActiveTab] = useState<string>('My Leads');
-  const [selectedLead, setSelectedLead] = useState<Lead | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [selectedLead, setSelectedLead] = useState<Lead | null>(() => {
+    return INITIAL_LEADS.find((l) => l.leadId === 'L2025100501') || INITIAL_LEADS[0];
+  });
+  const [tasks, setTasks] = useState<Task[]>(() => {
+    try {
+      const stored = localStorage.getItem('crm_tasks_v2');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch {}
+    return INITIAL_TASKS;
+  });
+  const [notifications, setNotifications] = useState<NotificationItem[]>(INITIAL_NOTIFICATIONS);
   const [unreadNotifCount, setUnreadNotifCount] = useState<number>(3);
   const [tableMode, setTableMode] = useState<'table' | 'kanban'>('table');
 

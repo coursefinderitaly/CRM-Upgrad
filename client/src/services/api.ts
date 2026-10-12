@@ -1,17 +1,35 @@
 import { AnalyticsData, FollowUp, Lead, NotificationItem, Task, DocumentItem } from '../types/crm';
 import { INITIAL_LEADS, INITIAL_TASKS, INITIAL_NOTIFICATIONS, INITIAL_ANALYTICS } from './mockData';
 
-const BASE_URL = '/api';
+const BASE_URL = (import.meta.env.VITE_API_URL as string) || '/api';
 
-// Safe fetch wrapper with timeout - if backend doesn't respond, smoothly falls back
-async function safeFetch(url: string, options?: RequestInit, timeoutMs = 1500): Promise<Response | null> {
+// Detect whether we are in a pure frontend deployment (like Vercel static) without a custom backend URL
+const isProductionFrontendOnly =
+  typeof window !== 'undefined' &&
+  window.location.hostname !== 'localhost' &&
+  window.location.hostname !== '127.0.0.1' &&
+  !import.meta.env.VITE_API_URL;
+
+// Safe fetch wrapper: checks JSON content-type and parses safely inside try/catch
+async function safeFetchJson<T>(url: string, options?: RequestInit, timeoutMs = 1200): Promise<T | null> {
+  // If deployed in production without a custom API backend specified, immediately use mock data
+  if (isProductionFrontendOnly) {
+    return null;
+  }
+
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const res = await fetch(url, { ...options, signal: controller.signal });
     clearTimeout(timer);
     if (!res.ok) return null;
-    return res;
+    const contentType = res.headers.get('content-type') || '';
+    // If the server returned HTML (e.g., an SPA index.html rewrite), it is NOT valid JSON
+    if (!contentType.includes('application/json')) {
+      return null;
+    }
+    const data = await res.json();
+    return data as T;
   } catch {
     clearTimeout(timer);
     return null;
@@ -86,8 +104,8 @@ function saveLocalNotifs(notifs: NotificationItem[]) {
 // 1. ANALYTICS
 // ==========================================
 export async function fetchAnalytics(): Promise<AnalyticsData> {
-  const res = await safeFetch(`${BASE_URL}/analytics`);
-  if (res) return res.json();
+  const data = await safeFetchJson<AnalyticsData>(`${BASE_URL}/analytics`);
+  if (data) return data;
 
   const leads = getLocalLeads();
   const total = leads.length;
@@ -132,8 +150,10 @@ export async function fetchLeads(params?: {
     });
   }
 
-  const res = await safeFetch(`${BASE_URL}/leads?${query.toString()}`);
-  if (res) return res.json();
+  const remote = await safeFetchJson<{ data: Lead[]; tabCounts: Record<string, number> }>(
+    `${BASE_URL}/leads?${query.toString()}`
+  );
+  if (remote) return remote;
 
   // Standalone / Offline fallback
   const allLeads = getLocalLeads();
@@ -207,8 +227,8 @@ export async function fetchLeads(params?: {
 }
 
 export async function fetchLeadById(id: string): Promise<Lead> {
-  const res = await safeFetch(`${BASE_URL}/leads/${id}`);
-  if (res) return res.json();
+  const remote = await safeFetchJson<Lead>(`${BASE_URL}/leads/${id}`);
+  if (remote) return remote;
 
   const leads = getLocalLeads();
   const match = leads.find((l) => l.id === id || l.leadId === id);
@@ -217,12 +237,12 @@ export async function fetchLeadById(id: string): Promise<Lead> {
 }
 
 export async function createLead(leadData: Partial<Lead>): Promise<Lead> {
-  const res = await safeFetch(`${BASE_URL}/leads`, {
+  const remote = await safeFetchJson<Lead>(`${BASE_URL}/leads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(leadData),
   });
-  if (res) return res.json();
+  if (remote) return remote;
 
   const leads = getLocalLeads();
   const nextIdNum = leads.length + 1;
@@ -258,12 +278,12 @@ export async function createLead(leadData: Partial<Lead>): Promise<Lead> {
 }
 
 export async function updateLead(id: string, updates: Partial<Lead>): Promise<Lead> {
-  const res = await safeFetch(`${BASE_URL}/leads/${id}`, {
+  const remote = await safeFetchJson<Lead>(`${BASE_URL}/leads/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(updates),
   });
-  if (res) return res.json();
+  if (remote) return remote;
 
   const leads = getLocalLeads();
   let updatedLead: Lead | null = null;
@@ -280,11 +300,11 @@ export async function updateLead(id: string, updates: Partial<Lead>): Promise<Le
 }
 
 export async function enrollLead(id: string): Promise<{ lead: Lead; student: any }> {
-  const res = await safeFetch(`${BASE_URL}/leads/${id}/enroll`, {
+  const remote = await safeFetchJson<{ lead: Lead; student: any }>(`${BASE_URL}/leads/${id}/enroll`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
-  if (res) return res.json();
+  if (remote) return remote;
 
   const leads = getLocalLeads();
   const match = leads.find((l) => l.id === id || l.leadId === id);
@@ -310,11 +330,11 @@ export async function enrollLead(id: string): Promise<{ lead: Lead; student: any
 }
 
 export async function transferToDocs(id: string): Promise<Lead> {
-  const res = await safeFetch(`${BASE_URL}/leads/${id}/transfer-docs`, {
+  const remote = await safeFetchJson<Lead>(`${BASE_URL}/leads/${id}/transfer-docs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
   });
-  if (res) return res.json();
+  if (remote) return remote;
 
   const leads = getLocalLeads();
   const match = leads.find((l) => l.id === id || l.leadId === id);
@@ -334,10 +354,9 @@ export async function transferToDocs(id: string): Promise<Lead> {
 }
 
 export async function deleteLead(id: string): Promise<void> {
-  const res = await safeFetch(`${BASE_URL}/leads/${id}`, {
+  await safeFetchJson(`${BASE_URL}/leads/${id}`, {
     method: 'DELETE',
   });
-  if (res) return;
 
   const leads = getLocalLeads();
   const updated = leads.filter((l) => l.id !== id && l.leadId !== id);
@@ -348,16 +367,16 @@ export async function deleteLead(id: string): Promise<void> {
 // 3. TASKS
 // ==========================================
 export async function fetchTasks(): Promise<Task[]> {
-  const res = await safeFetch(`${BASE_URL}/tasks`);
-  if (res) return res.json();
+  const remote = await safeFetchJson<Task[]>(`${BASE_URL}/tasks`);
+  if (remote) return remote;
   return getLocalTasks();
 }
 
 export async function toggleTask(id: string): Promise<Task> {
-  const res = await safeFetch(`${BASE_URL}/tasks/${id}/toggle`, {
+  const remote = await safeFetchJson<Task>(`${BASE_URL}/tasks/${id}/toggle`, {
     method: 'PATCH',
   });
-  if (res) return res.json();
+  if (remote) return remote;
 
   const tasks = getLocalTasks();
   let updatedTask: Task | null = null;
@@ -378,12 +397,12 @@ export async function toggleTask(id: string): Promise<Task> {
 }
 
 export async function createTask(task: Partial<Task>): Promise<Task> {
-  const res = await safeFetch(`${BASE_URL}/tasks`, {
+  const remote = await safeFetchJson<Task>(`${BASE_URL}/tasks`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(task),
   });
-  if (res) return res.json();
+  if (remote) return remote;
 
   const tasks = getLocalTasks();
   const newTask: Task = {
@@ -408,8 +427,8 @@ export async function createTask(task: Partial<Task>): Promise<Task> {
 // 4. NOTIFICATIONS
 // ==========================================
 export async function fetchNotifications(): Promise<{ list: NotificationItem[]; unreadCount: number }> {
-  const res = await safeFetch(`${BASE_URL}/notifications`);
-  if (res) return res.json();
+  const remote = await safeFetchJson<{ list: NotificationItem[]; unreadCount: number }>(`${BASE_URL}/notifications`);
+  if (remote) return remote;
 
   const list = getLocalNotifs();
   const unreadCount = list.filter((n) => !n.isRead).length;
@@ -417,8 +436,7 @@ export async function fetchNotifications(): Promise<{ list: NotificationItem[]; 
 }
 
 export async function markNotificationRead(id: string): Promise<void> {
-  const res = await safeFetch(`${BASE_URL}/notifications/${id}/read`, { method: 'PATCH' });
-  if (res) return;
+  await safeFetchJson(`${BASE_URL}/notifications/${id}/read`, { method: 'PATCH' });
 
   const notifs = getLocalNotifs();
   const updated = notifs.map((n) => (n.id === id ? { ...n, isRead: true } : n));
@@ -426,8 +444,7 @@ export async function markNotificationRead(id: string): Promise<void> {
 }
 
 export async function markAllNotificationsRead(): Promise<void> {
-  const res = await safeFetch(`${BASE_URL}/notifications/read-all`, { method: 'POST' });
-  if (res) return;
+  await safeFetchJson(`${BASE_URL}/notifications/read-all`, { method: 'POST' });
 
   const notifs = getLocalNotifs();
   const updated = notifs.map((n) => ({ ...n, isRead: true }));
@@ -438,8 +455,8 @@ export async function markAllNotificationsRead(): Promise<void> {
 // 5. GLOBAL SEARCH & FOLLOW-UPS & COMMUNICATIONS
 // ==========================================
 export async function searchGlobal(q: string): Promise<Lead[]> {
-  const res = await safeFetch(`${BASE_URL}/search?q=${encodeURIComponent(q)}`);
-  if (res) return res.json();
+  const remote = await safeFetchJson<Lead[]>(`${BASE_URL}/search?q=${encodeURIComponent(q)}`);
+  if (remote) return remote;
 
   const leads = getLocalLeads();
   const query = q.toLowerCase().trim();
@@ -461,12 +478,12 @@ export async function scheduleFollowUp(data: {
   reminder?: string;
   notes?: string;
 }): Promise<FollowUp> {
-  const res = await safeFetch(`${BASE_URL}/followups`, {
+  const remote = await safeFetchJson<FollowUp>(`${BASE_URL}/followups`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (res) return res.json();
+  if (remote) return remote;
 
   const leads = getLocalLeads();
   const match = leads.find((l) => l.id === data.leadId || l.leadId === data.leadId);
@@ -501,56 +518,54 @@ export async function scheduleFollowUp(data: {
 }
 
 export async function sendEmail(data: { leadId?: string; to: string; subject: string; message: string }): Promise<void> {
-  const res = await safeFetch(`${BASE_URL}/communications/email`, {
+  await safeFetchJson(`${BASE_URL}/communications/email`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (res) return;
 }
 
 export async function sendWhatsApp(data: { leadId?: string; phone: string; message: string }): Promise<void> {
-  const res = await safeFetch(`${BASE_URL}/communications/whatsapp`, {
+  await safeFetchJson(`${BASE_URL}/communications/whatsapp`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });
-  if (res) return;
 }
 
 // ==========================================
 // 6. STUDENTS & OTHER ENTITIES
 // ==========================================
 export async function fetchStudents(): Promise<any[]> {
-  const res = await safeFetch(`${BASE_URL}/students`);
-  if (res) return res.json();
+  const remote = await safeFetchJson<any[]>(`${BASE_URL}/students`);
+  if (remote) return remote;
   return [];
 }
 
 export async function fetchDocuments(): Promise<DocumentItem[]> {
-  const res = await safeFetch(`${BASE_URL}/documents`);
-  if (res) return res.json();
+  const remote = await safeFetchJson<DocumentItem[]>(`${BASE_URL}/documents`);
+  if (remote) return remote;
   return [];
 }
 
 export async function updateDocumentStatus(id: string, status: string, notes?: string): Promise<DocumentItem> {
-  const res = await safeFetch(`${BASE_URL}/documents/${id}/status`, {
+  const remote = await safeFetchJson<DocumentItem>(`${BASE_URL}/documents/${id}/status`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ status, notes }),
   });
-  if (res) return res.json();
+  if (remote) return remote;
   return { id, leadId: 'lead-1', name: 'Document', category: 'Academic', status: status as any, notes };
 }
 
 export async function fetchApplications(): Promise<any[]> {
-  const res = await safeFetch(`${BASE_URL}/applications`);
-  if (res) return res.json();
+  const remote = await safeFetchJson<any[]>(`${BASE_URL}/applications`);
+  if (remote) return remote;
   return [];
 }
 
 export async function fetchUniversities(): Promise<any[]> {
-  const res = await safeFetch(`${BASE_URL}/universities`);
-  if (res) return res.json();
+  const remote = await safeFetchJson<any[]>(`${BASE_URL}/universities`);
+  if (remote) return remote;
   return [];
 }
