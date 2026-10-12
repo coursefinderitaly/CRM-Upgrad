@@ -366,11 +366,21 @@ export function App() {
               onViewModeChange={(m) => setTableMode(m)}
               onUpdateStatus={handleUpdateStatus}
               onKpiClick={(filter) => {
-                if (filter === 'total') handleTabChange('My Leads');
-                else if (filter === 'counselling') handleTabChange('Counselling');
-                else if (filter === 'enrolled') handleTabChange('Enrolled');
-                else if (filter === 'transferred') handleTabChange('Transferred');
+                if (filter === 'my-students' || filter === 'students' || filter === 'total') {
+                  handleNavigate('students');
+                } else if (filter === 'documentation' || filter === 'transferred') {
+                  handleNavigate('documentation');
+                } else if (filter === 'offers-letter' || filter === 'offers' || filter === 'applications') {
+                  handleNavigate('applications');
+                } else if (filter === 'enrollment' || filter === 'enrolment' || filter === 'enrolled') {
+                  handleNavigate('enrolment');
+                } else if (filter === 'dov-visa' || filter === 'visa' || filter === 'dov') {
+                  handleNavigate('students?filter=Visa');
+                } else if (filter === 'counselling') {
+                  handleTabChange('Counselling');
+                }
               }}
+              onNavigate={handleNavigate}
               onSelectSource={async (src) => {
                 const res = await fetchLeads({ source: src });
                 setLeads(res.data);

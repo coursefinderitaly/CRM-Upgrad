@@ -100,7 +100,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   const tabCount = (id: 'All' | 'Applications' | 'Offers' | 'Visa' | 'Ready') =>
     id === 'All' ? workflowStudents.length : workflowStudents.filter(TAB_FILTERS[id]).length;
 
-  // Check URL Hash for deep links like #students?id=ITA-2027-001
+  // Check URL Hash for deep links like #students?id=ITA-2027-001 or #students?filter=Visa
   useEffect(() => {
     const handleHash = () => {
       const hash = window.location.hash;
@@ -113,11 +113,21 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
           setSelectedStudent(match);
         }
       }
+      if (hash.toLowerCase().includes('visa') || hash.toLowerCase().includes('dov')) {
+        setTabFilter('Visa');
+        setSelectedStudent(null);
+      } else if (hash.toLowerCase().includes('offers')) {
+        setTabFilter('Offers');
+        setSelectedStudent(null);
+      } else if (hash.toLowerCase().includes('applications')) {
+        setTabFilter('Applications');
+        setSelectedStudent(null);
+      }
     };
     handleHash();
     window.addEventListener('hashchange', handleHash);
     return () => window.removeEventListener('hashchange', handleHash);
-  }, []);
+  }, [workflowStudents]);
 
   // Filter students for the directory list
   const filteredStudents = workflowStudents.filter((st) => {

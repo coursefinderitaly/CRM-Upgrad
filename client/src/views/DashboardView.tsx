@@ -34,6 +34,7 @@ interface DashboardViewProps {
   onViewModeChange: (mode: 'table' | 'kanban') => void;
   onUpdateStatus: (leadId: string, newStatus: string) => void;
   onKpiClick: (filter: string) => void;
+  onNavigate?: (route: string) => void;
   onSelectSource: (source: string) => void;
   onSelectCountry: (country: string) => void;
 }
@@ -64,13 +65,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onViewModeChange,
   onUpdateStatus,
   onKpiClick,
+  onNavigate,
   onSelectSource,
   onSelectCountry,
 }) => {
   return (
     <div className="p-3 space-y-2.5 max-w-[1536px] mx-auto select-none">
       {/* 1. Seven KPI Cards Row */}
-      <KpiCardsRow analytics={analytics} onKpiClick={onKpiClick} />
+      <KpiCardsRow analytics={analytics} onKpiClick={onKpiClick} onNavigate={onNavigate} />
 
       {/* 2. Main Dashboard Layout (Left ~72% / Right ~28%) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-start">
