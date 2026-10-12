@@ -14,6 +14,7 @@ import { TasksView } from './views/TasksView';
 import { CommunicationView } from './views/CommunicationView';
 import { ReportsView } from './views/ReportsView';
 import { SettingsView } from './views/SettingsView';
+import { CalendarView } from './views/CalendarView';
 
 import { AddLeadModal } from './components/modals/AddLeadModal';
 import { EditLeadModal } from './components/modals/EditLeadModal';
@@ -333,6 +334,7 @@ export function App() {
             setNotifications(notifs.list);
             setUnreadNotifCount(notifs.unreadCount);
           }}
+          onNavigate={handleNavigate}
         />
 
         {/* Dynamic Route View */}
@@ -512,6 +514,16 @@ export function App() {
                 setModalTargetLead(selectedLead);
                 setShowWhatsAppModal(true);
               }}
+            />
+          )}
+
+          {currentRoute === 'calendar' && (
+            <CalendarView
+              leads={leads}
+              onNavigate={handleNavigate}
+              onScheduleFollowUp={openScheduleFollowUp}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenPhone={openPhone}
             />
           )}
 

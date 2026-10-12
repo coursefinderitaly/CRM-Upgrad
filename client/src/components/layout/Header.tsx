@@ -14,9 +14,14 @@ import {
   Calendar,
   Phone,
   ExternalLink,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  ArrowRight,
 } from 'lucide-react';
 import { NotificationItem, Lead } from '../../types/crm';
 import { searchGlobal, markNotificationRead, markAllNotificationsRead } from '../../services/api';
+import { CalendarEvent, STORAGE_KEY, getInitialEvents } from '../../views/CalendarView';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -27,6 +32,7 @@ interface HeaderProps {
   unreadCount: number;
   onSelectLead: (lead: Lead) => void;
   onRefreshNotifications: () => void;
+  onNavigate?: (route: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,6 +44,7 @@ export const Header: React.FC<HeaderProps> = ({
   unreadCount,
   onSelectLead,
   onRefreshNotifications,
+  onNavigate,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Lead[]>([]);
@@ -49,8 +56,18 @@ export const Header: React.FC<HeaderProps> = ({
   const [activeModal, setActiveModal] = useState<'profile' | 'settings' | 'password' | 'logout' | null>(null);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
+  // Calendar Dropdown State
+  const [showCalendarPopup, setShowCalendarPopup] = useState(false);
+  const [calendarPopupDate, setCalendarPopupDate] = useState(() => new Date());
+  const [selectedPopupDate, setSelectedPopupDate] = useState<string>(() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  });
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+
   const searchRef = useRef<HTMLDivElement>(null);
   const notifRef = useRef<HTMLDivElement>(null);
+  const calendarRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
   // Debounced search
@@ -77,6 +94,24 @@ export const Header: React.FC<HeaderProps> = ({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  // Load calendar events from shared localStorage whenever popup opens
+  useEffect(() => {
+    if (showCalendarPopup) {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          setCalendarEvents(JSON.parse(saved));
+        } else {
+          const initial = getInitialEvents();
+          setCalendarEvents(initial);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(initial));
+        }
+      } catch {
+        setCalendarEvents(getInitialEvents());
+      }
+    }
+  }, [showCalendarPopup]);
+
   // Click outside listener
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -86,6 +121,9 @@ export const Header: React.FC<HeaderProps> = ({
       if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
         setShowNotifications(false);
       }
+      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
+        setShowCalendarPopup(false);
+      }
       if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
         setShowProfileMenu(false);
       }
@@ -93,6 +131,84 @@ export const Header: React.FC<HeaderProps> = ({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Calendar calculations
+  const todayStr = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  })();
+
+  const currentPopupYear = calendarPopupDate.getFullYear();
+  const currentPopupMonth = calendarPopupDate.getMonth();
+  const firstDayOfMonthIndex = (new Date(currentPopupYear, currentPopupMonth, 1).getDay() + 6) % 7;
+  const daysInCurrentMonth = new Date(currentPopupYear, currentPopupMonth + 1, 0).getDate();
+  const daysInPreviousMonth = new Date(currentPopupYear, currentPopupMonth, 0).getDate();
+
+  const prevMonthDays = Array.from({ length: firstDayOfMonthIndex }, (_, i) => {
+    const day = daysInPreviousMonth - firstDayOfMonthIndex + i + 1;
+    const m = currentPopupMonth === 0 ? 12 : currentPopupMonth;
+    const y = currentPopupMonth === 0 ? currentPopupYear - 1 : currentPopupYear;
+    return {
+      day,
+      dateStr: `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      isCurrentMonth: false,
+    };
+  });
+
+  const curMonthDays = Array.from({ length: daysInCurrentMonth }, (_, i) => {
+    const day = i + 1;
+    return {
+      day,
+      dateStr: `${currentPopupYear}-${String(currentPopupMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      isCurrentMonth: true,
+    };
+  });
+
+  const slotsNeeded = (7 - ((prevMonthDays.length + curMonthDays.length) % 7)) % 7;
+  const nextMonthDays = Array.from({ length: slotsNeeded }, (_, i) => {
+    const day = i + 1;
+    const m = currentPopupMonth === 11 ? 1 : currentPopupMonth + 2;
+    const y = currentPopupMonth === 11 ? currentPopupYear + 1 : currentPopupYear;
+    return {
+      day,
+      dateStr: `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      isCurrentMonth: false,
+    };
+  });
+
+  const allGridDays = [...prevMonthDays, ...curMonthDays, ...nextMonthDays];
+
+  const selectedDayEvents = calendarEvents.filter((e) => e.date === selectedPopupDate);
+  const todayEventsCount = calendarEvents.filter((e) => e.date === todayStr).length;
+
+  const handlePrevMonth = () => {
+    setCalendarPopupDate(new Date(currentPopupYear, currentPopupMonth - 1, 1));
+  };
+
+  const handleNextMonth = () => {
+    setCalendarPopupDate(new Date(currentPopupYear, currentPopupMonth + 1, 1));
+  };
+
+  const handleJumpToToday = () => {
+    const now = new Date();
+    setCalendarPopupDate(now);
+    setSelectedPopupDate(todayStr);
+  };
+
+  const getCategoryDot = (type: string) => {
+    switch (type) {
+      case 'counselling':
+        return 'bg-blue-500';
+      case 'followup':
+        return 'bg-emerald-500';
+      case 'visa':
+        return 'bg-purple-500';
+      case 'deadline':
+        return 'bg-rose-500';
+      default:
+        return 'bg-amber-500';
+    }
+  };
 
   const handleNotificationClick = async (notif: NotificationItem) => {
     if (!notif.isRead) {
@@ -262,14 +378,183 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Calendar Icon Button */}
-        <button
-          onClick={() => alert('Calendar & Schedule: View meetings and deadlines.')}
-          className="p-1.5 text-[#334155] hover:text-[#087cf5] hover:bg-slate-100 rounded-md transition-colors"
-          title="Calendar & Appointments"
-        >
-          <Calendar className="w-5 h-5" />
-        </button>
+        {/* Calendar Dropdown */}
+        <div ref={calendarRef} className="relative">
+          <button
+            onClick={() => setShowCalendarPopup(!showCalendarPopup)}
+            className={`p-1.5 rounded-md transition-colors relative ${
+              showCalendarPopup
+                ? 'bg-blue-50 text-[#087cf5]'
+                : 'text-[#334155] hover:text-[#087cf5] hover:bg-slate-100'
+            }`}
+            title="Calendar & Schedule"
+          >
+            <Calendar className="w-5 h-5" />
+            {todayEventsCount > 0 && (
+              <span className="absolute top-0.5 right-0.5 w-2 h-2 bg-[#087cf5] rounded-full ring-2 ring-white" />
+            )}
+          </button>
+
+          {showCalendarPopup && (
+            <div className="absolute right-0 top-full mt-2 w-[350px] sm:w-[380px] bg-white border border-[#e2e8f0] rounded-xl shadow-2xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150">
+              {/* Header */}
+              <div className="px-3.5 py-2.5 bg-slate-50 border-b border-slate-200/80 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-[13px] font-bold text-[#101d37]">
+                    {calendarPopupDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </span>
+                  <button
+                    onClick={handleJumpToToday}
+                    className="text-[10px] font-semibold text-[#087cf5] hover:bg-blue-50 px-2 py-0.5 rounded border border-blue-200 transition-colors"
+                  >
+                    Today
+                  </button>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={handlePrevMonth}
+                    className="p-1 hover:bg-slate-200 text-[#52627a] rounded transition-colors"
+                    title="Previous Month"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={handleNextMonth}
+                    className="p-1 hover:bg-slate-200 text-[#52627a] rounded transition-colors"
+                    title="Next Month"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Day of Week headers */}
+              <div className="grid grid-cols-7 text-center text-[10px] font-bold text-[#8ca0ba] py-1 border-b border-slate-100 bg-slate-50/50">
+                <span>Mo</span>
+                <span>Tu</span>
+                <span>We</span>
+                <span>Th</span>
+                <span>Fr</span>
+                <span>Sa</span>
+                <span>Su</span>
+              </div>
+
+              {/* Mini Month Grid */}
+              <div className="grid grid-cols-7 p-2 gap-1 bg-white">
+                {allGridDays.map((d, idx) => {
+                  const isToday = d.dateStr === todayStr;
+                  const isSelected = d.dateStr === selectedPopupDate;
+                  const dayEvts = calendarEvents.filter((e) => e.date === d.dateStr);
+                  const hasEvents = dayEvts.length > 0;
+
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => setSelectedPopupDate(d.dateStr)}
+                      className={`h-7 sm:h-8 flex flex-col items-center justify-center rounded-lg text-[11px] relative transition-all ${
+                        !d.isCurrentMonth
+                          ? 'text-slate-300'
+                          : isSelected
+                          ? 'bg-[#087cf5] text-white font-bold shadow-xs'
+                          : isToday
+                          ? 'border border-[#087cf5] text-[#087cf5] font-semibold hover:bg-blue-50'
+                          : 'text-[#101d37] hover:bg-slate-100'
+                      }`}
+                    >
+                      <span className="leading-none">{d.day}</span>
+                      {hasEvents && (
+                        <div className="flex items-center gap-0.5 mt-0.5">
+                          {dayEvts.slice(0, 3).map((evt, i) => (
+                            <span
+                              key={i}
+                              className={`w-1 h-1 rounded-full ${
+                                isSelected ? 'bg-white' : getCategoryDot(evt.type)
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Selected Day Agenda Header */}
+              <div className="px-3 py-1.5 bg-slate-50 border-t border-b border-slate-100 flex items-center justify-between text-[11px]">
+                <div className="font-semibold text-[#101d37] flex items-center gap-1.5">
+                  <Clock className="w-3 h-3 text-[#087cf5]" />
+                  <span>
+                    {new Date(selectedPopupDate + 'T00:00:00').toLocaleDateString('en-US', {
+                      weekday: 'short',
+                      month: 'short',
+                      day: 'numeric',
+                    })}
+                  </span>
+                </div>
+                <span className="text-[10px] font-semibold text-[#52627a] bg-slate-200/70 px-2 py-0.5 rounded-full">
+                  {selectedDayEvents.length} {selectedDayEvents.length === 1 ? 'Event' : 'Events'}
+                </span>
+              </div>
+
+              {/* Selected Day Event List */}
+              <div className="max-h-44 overflow-y-auto divide-y divide-slate-100 p-2 space-y-1 bg-white">
+                {selectedDayEvents.length > 0 ? (
+                  selectedDayEvents.map((evt) => (
+                    <div
+                      key={evt.id}
+                      className="p-2 rounded-lg bg-slate-50 hover:bg-blue-50/50 border border-slate-100 transition-colors text-left"
+                    >
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-[11px] font-bold text-[#101d37] truncate">
+                          {evt.title}
+                        </span>
+                        <span
+                          className={`text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0 ${
+                            evt.type === 'counselling'
+                              ? 'bg-blue-100 text-blue-700'
+                              : evt.type === 'visa'
+                              ? 'bg-purple-100 text-purple-700'
+                              : evt.type === 'deadline'
+                              ? 'bg-rose-100 text-rose-700'
+                              : 'bg-emerald-100 text-emerald-700'
+                          }`}
+                        >
+                          {evt.type}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1 text-[10.5px] text-[#52627a]">
+                        <span className="font-medium text-[#101d37] truncate">{evt.studentName}</span>
+                        <span className="text-slate-500 font-semibold shrink-0">{evt.time}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-3 text-center">
+                    <p className="text-xs text-[#8496b0]">No events scheduled on this date</p>
+                    <p className="text-[10.5px] text-slate-400 mt-0.5">
+                      Select another day or open full calendar
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer CTA */}
+              <div className="p-2 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
+                <button
+                  onClick={() => {
+                    setShowCalendarPopup(false);
+                    onNavigate?.('calendar');
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 bg-[#087cf5] hover:bg-[#076ed9] text-white text-xs font-semibold rounded-lg shadow-xs transition-colors"
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>Open Full Calendar & Schedule</span>
+                  <ArrowRight className="w-3.5 h-3.5 ml-0.5" />
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* User Profile Area */}
         <div ref={profileRef} className="relative pl-1 border-l border-slate-200">

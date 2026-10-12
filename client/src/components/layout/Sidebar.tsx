@@ -11,6 +11,7 @@ import {
   Headphones,
   CreditCard,
   Send,
+  Calendar,
   X,
   ChevronLeft,
   ChevronRight,
@@ -73,6 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Secondary management sections below divider
   const secondaryNavItems = [
     { id: 'tasks', label: 'Tasks & Follow-ups', icon: CheckSquare },
+    { id: 'calendar', label: 'Calendar & Schedule', icon: Calendar, badge: 8 },
     { id: 'communication', label: 'Communications', icon: MessageSquare },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
     { id: 'settings', label: 'Settings', icon: Settings },
