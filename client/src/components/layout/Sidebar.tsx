@@ -73,7 +73,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // Secondary management sections below divider
   const secondaryNavItems = [
-    { id: 'tasks', label: 'Tasks & Follow-ups', icon: CheckSquare },
+    { id: 'tasks', label: 'Tasks & Follow-ups', icon: CheckSquare, badge: 16 },
     { id: 'calendar', label: 'Calendar & Schedule', icon: Calendar, badge: 8 },
     { id: 'communication', label: 'Communications', icon: MessageSquare },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },

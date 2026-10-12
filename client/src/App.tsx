@@ -509,8 +509,14 @@ export function App() {
           {currentRoute === 'tasks' && (
             <TasksView
               tasks={tasks}
+              leads={leads}
               onToggleTask={handleToggleTask}
               onAddTask={() => setShowTaskModal(true)}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onScheduleFollowUp={openScheduleFollowUp}
+              onNavigate={handleNavigate}
             />
           )}
 
