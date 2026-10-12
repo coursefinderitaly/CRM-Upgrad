@@ -131,7 +131,7 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
                     : lead.avatarUrl || '/avatars/rahul.png'
                 }
                 alt={lead.studentName}
-                className="w-10 h-10 rounded-full object-cover border border-slate-200 shrink-0"
+                className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
               />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
@@ -142,8 +142,25 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
                     {lead.status}
                   </span>
                 </div>
-                <div className="text-[11px] text-[#64748b] leading-tight mt-0.5">
-                  Lead ID: <span className="font-medium text-[#101d37]">{lead.leadId}</span>
+                <div className="text-[11px] text-[#64748b] leading-tight mt-0.5 flex items-center gap-2">
+                  <span>Lead ID: <span className="font-medium text-[#101d37]">{lead.leadId}</span></span>
+                  <a
+                    href={`#students?id=${
+                      lead.leadId === 'L2025100501' || lead.studentName.toLowerCase().includes('rahul')
+                        ? 'ITA-2027-001'
+                        : lead.studentName.toLowerCase().includes('priya')
+                        ? 'GER-2026-004'
+                        : lead.studentName.toLowerCase().includes('rohit')
+                        ? 'ITA-2027-008'
+                        : lead.studentName.toLowerCase().includes('sneha')
+                        ? 'UK-2026-012'
+                        : 'ITA-2027-001'
+                    }`}
+                    className="text-[#087cf5] hover:underline font-semibold flex items-center gap-0.5 text-[10.5px]"
+                    title="View Full Student Profile"
+                  >
+                    <span>View Student Profile &gt;</span>
+                  </a>
                 </div>
               </div>
             </div>
@@ -347,69 +364,69 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
               </div>
 
               {/* Next Follow-up Section */}
-              <div className="pt-2 border-t border-slate-100">
-                <div className="flex items-center justify-between mb-1.5">
-                  <h3 className="font-bold text-[#101d37] text-[12px]">Next Follow-up</h3>
+              <div className="pt-2.5 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-[#101d37] text-[12.5px]">Next Follow-up</h3>
                   <button
                     onClick={() => onScheduleFollowUp(lead)}
-                    className="text-[11px] bg-[#087cf5] hover:bg-[#006ee6] text-white px-2.5 py-0.5 rounded font-medium shadow-xs transition-colors"
+                    className="text-[11px] bg-[#087cf5] hover:bg-[#006ee6] text-white px-3 py-1 rounded-md font-semibold shadow-xs transition-colors"
                   >
                     Update
                   </button>
                 </div>
-                <div className="bg-[#f8fafc] border border-slate-200/80 rounded-md p-2">
-                  <div className="flex items-center gap-1.5 text-[#101d37] font-semibold text-[11.5px]">
-                    <Calendar className="w-3.5 h-3.5 text-[#087cf5]" />
-                    <span>
+                <div className="bg-[#f8fafc] border border-slate-200/80 rounded-lg p-2.5">
+                  <div className="flex items-center gap-1.5 text-[#101d37] font-semibold text-[12px]">
+                    <Calendar className="w-4 h-4 text-[#087cf5] shrink-0" />
+                    <span className="truncate">
                       {lead.nextFollowUp} {lead.nextFollowUpTime || '11:00 AM'}
                     </span>
                   </div>
-                  <div className="text-[11px] text-[#52627a] mt-1">
+                  <div className="text-[11.5px] text-[#52627a] mt-1 leading-snug">
                     {lead.nextFollowUpTask || 'Call to discuss university options'}
                   </div>
                 </div>
               </div>
 
               {/* Quick Actions (4 Buttons matching screenshot) */}
-              <div className="pt-2 border-t border-slate-100 space-y-2">
-                <h3 className="font-bold text-[#101d37] text-[12px]">Quick Actions</h3>
+              <div className="pt-2.5 border-t border-slate-100 space-y-2">
+                <h3 className="font-bold text-[#101d37] text-[12.5px]">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-2">
                   {/* Mark as Enrolled */}
                   <button
                     onClick={() => onEnrollLead(lead)}
-                    className="flex items-center justify-center gap-1.5 bg-[#16a34a] hover:bg-[#15803d] text-white text-[11px] font-semibold py-1.5 px-2 rounded-[6px] shadow-xs transition-colors"
+                    className="flex items-center justify-center gap-1.5 bg-[#16a34a] hover:bg-[#15803d] text-white text-[11.5px] font-semibold py-2 px-2 rounded-lg shadow-xs transition-colors whitespace-nowrap min-h-[36px]"
                   >
-                    <UserCheck className="w-3.5 h-3.5" />
-                    <span>Mark as Enrolled</span>
+                    <UserCheck className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Convert to Student</span>
                   </button>
 
                   {/* Schedule Follow-up */}
                   <button
                     onClick={() => onScheduleFollowUp(lead)}
-                    className="flex items-center justify-center gap-1.5 bg-[#087cf5] hover:bg-[#006ee6] text-white text-[11px] font-semibold py-1.5 px-2 rounded-[6px] shadow-xs transition-colors"
+                    className="flex items-center justify-center gap-1.5 bg-[#087cf5] hover:bg-[#006ee6] text-white text-[11.5px] font-semibold py-2 px-2 rounded-lg shadow-xs transition-colors whitespace-nowrap min-h-[36px]"
                   >
-                    <Calendar className="w-3.5 h-3.5" />
-                    <span>Schedule Follow-up</span>
+                    <Calendar className="w-4 h-4 shrink-0" />
+                    <span className="truncate">Schedule Follow-up</span>
                   </button>
 
                   {/* Send Email */}
                   <button
                     onClick={() => onOpenEmail(lead)}
-                    className="flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-[#101d37] border border-[#e2e8f0] text-[11px] font-semibold py-1.5 px-2 rounded-[6px] transition-colors"
+                    className="flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-[#0f172a] border border-[#e2e8f0] text-[11.5px] font-semibold py-2 px-2 rounded-lg transition-colors whitespace-nowrap min-h-[36px]"
                   >
-                    <Mail className="w-3.5 h-3.5 text-[#52627a]" />
-                    <span>Send Email</span>
+                    <Mail className="w-4 h-4 text-[#64748b] shrink-0" />
+                    <span className="truncate">Send Email</span>
                   </button>
 
                   {/* Send WhatsApp */}
                   <button
                     onClick={() => onOpenWhatsApp(lead)}
-                    className="flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-[#101d37] border border-[#e2e8f0] text-[11px] font-semibold py-1.5 px-2 rounded-[6px] transition-colors"
+                    className="flex items-center justify-center gap-1.5 bg-white hover:bg-slate-50 text-[#0f172a] border border-[#e2e8f0] text-[11.5px] font-semibold py-2 px-2 rounded-lg transition-colors whitespace-nowrap min-h-[36px]"
                   >
-                    <svg className="w-3.5 h-3.5 fill-[#10b981]" viewBox="0 0 24 24">
+                    <svg className="w-4 h-4 fill-[#10b981] shrink-0" viewBox="0 0 24 24">
                       <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981z" />
                     </svg>
-                    <span>Send WhatsApp</span>
+                    <span className="truncate">Send WhatsApp</span>
                   </button>
                 </div>
               </div>

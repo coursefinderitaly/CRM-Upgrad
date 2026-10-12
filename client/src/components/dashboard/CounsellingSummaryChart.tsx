@@ -47,44 +47,47 @@ export const CounsellingSummaryChart: React.FC<CounsellingSummaryChartProps> = (
   };
 
   return (
-    <div className="bg-white rounded-[8px] border border-[#e5edf5] shadow-crm-card p-3 flex flex-col h-full">
+    <div className="bg-white rounded-[10px] border border-[#e5edf5] shadow-crm-card p-4 flex flex-col h-full w-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between pb-2 border-b border-[#e5edf5] mb-2">
-        <h3 className="text-[13px] font-bold text-[#101d37]">
+      <div className="flex items-center justify-between pb-2.5 border-b border-[#eef3f8] mb-1 shrink-0">
+        <h3 className="text-[13.5px] font-bold text-[#101d37]">
           Counselling Summary <span className="font-normal text-[#64748b]">(This Month)</span>
         </h3>
         <button
           onClick={onViewReports}
-          className="text-[11px] text-[#087cf5] hover:underline font-semibold"
+          className="text-[11.5px] text-[#087cf5] hover:underline font-semibold shrink-0"
         >
           View Reports
         </button>
       </div>
 
       {/* Chart Canvas */}
-      <div className="flex-1 w-full h-[185px] min-h-[185px]">
-        <ResponsiveContainer width="100%" height={185}>
+      <div className="flex-1 w-full min-h-[210px]">
+        <ResponsiveContainer width="100%" height="100%" minHeight={210}>
           <BarChart
             data={chartData}
-            margin={{ top: 22, right: 10, left: -25, bottom: 5 }}
-            barSize={32}
+            margin={{ top: 24, right: 12, left: -18, bottom: 0 }}
+            barCategoryGap="24%"
           >
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eef2f7" />
             <XAxis
               dataKey="name"
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#52627a', fontSize: 10.5 }}
+              interval={0}
+              tickMargin={8}
+              tick={{ fill: '#475569', fontSize: 11, fontWeight: 500 }}
             />
             <YAxis
               axisLine={false}
               tickLine={false}
-              tick={{ fill: '#8496b0', fontSize: 10 }}
+              tick={{ fill: '#94a3b8', fontSize: 10.5 }}
               domain={[0, 48]}
               ticks={[0, 10, 20, 30, 40]}
+              width={42}
             />
             <Tooltip
-              cursor={{ fill: 'rgba(8, 124, 245, 0.05)' }}
+              cursor={{ fill: 'rgba(8, 124, 245, 0.06)' }}
               content={({ active, payload }) => {
                 if (active && payload && payload.length) {
                   const d = payload[0].payload;
@@ -101,7 +104,8 @@ export const CounsellingSummaryChart: React.FC<CounsellingSummaryChartProps> = (
             <Bar
               dataKey="count"
               isAnimationActive={false}
-              radius={[4, 4, 0, 0]}
+              radius={[5, 5, 0, 0]}
+              maxBarSize={38}
               label={renderCustomBarLabel}
               onClick={(item) => onBarClick && onBarClick(item)}
               cursor="pointer"

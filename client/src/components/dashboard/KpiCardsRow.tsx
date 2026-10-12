@@ -5,8 +5,6 @@ import {
   FileText,
   UserPlus,
   FileCheck2,
-  Send,
-  ClipboardCheck,
 } from 'lucide-react';
 import { AnalyticsData } from '../../types/crm';
 
@@ -80,30 +78,10 @@ export const KpiCardsRow: React.FC<KpiCardsRowProps> = ({
       iconColor: 'text-[#7c3aed]',
       icon: FileCheck2,
     },
-    {
-      id: 'application',
-      value: kpis.applicationInProcess.value,
-      label: 'Application in Process',
-      growth: kpis.applicationInProcess.growth,
-      bg: 'bg-[#e2efff]',
-      iconBg: 'bg-[#c9e1ff]',
-      iconColor: 'text-[#0284c7]',
-      icon: Send,
-    },
-    {
-      id: 'offer',
-      value: kpis.offerReceived.value,
-      label: 'Offer Received',
-      growth: kpis.offerReceived.growth,
-      bg: 'bg-[#e3f8f1]',
-      iconBg: 'bg-[#c4f3df]',
-      iconColor: 'text-[#16a34a]',
-      icon: ClipboardCheck,
-    },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 mb-3.5">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-3.5">
       {cards.map((c) => {
         const Icon = c.icon;
         return (

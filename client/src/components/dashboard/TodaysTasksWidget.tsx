@@ -16,20 +16,20 @@ export const TodaysTasksWidget: React.FC<TodaysTasksWidgetProps> = ({
   onAddTask,
 }) => {
   return (
-    <div className="bg-white rounded-[8px] border border-[#e5edf5] shadow-crm-card p-3 flex flex-col h-full">
+    <div className="bg-white rounded-[10px] border border-[#e5edf5] shadow-crm-card p-4 flex flex-col h-full w-full overflow-hidden">
       {/* Header */}
-      <div className="flex items-center justify-between pb-1.5 border-b border-[#e5edf5] mb-1.5">
-        <h3 className="text-[13px] font-bold text-[#101d37]">Today's Tasks</h3>
+      <div className="flex items-center justify-between pb-2.5 border-b border-[#eef3f8] mb-2 shrink-0">
+        <h3 className="text-[13.5px] font-bold text-[#101d37]">Today's Tasks</h3>
         <button
           onClick={onViewAll}
-          className="text-[11px] text-[#087cf5] hover:underline font-semibold"
+          className="text-[11.5px] text-[#087cf5] hover:underline font-semibold"
         >
           View All
         </button>
       </div>
 
       {/* Task List */}
-      <div className="flex-1 space-y-1 overflow-y-auto">
+      <div className="flex-1 space-y-1 overflow-y-auto min-h-0">
         {tasks.slice(0, 5).map((task) => {
           const isDueNow = task.dueStatus === 'Due Now';
           return (

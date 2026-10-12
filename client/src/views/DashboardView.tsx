@@ -97,9 +97,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           />
 
           {/* Widgets Grid: 2 rows × 2 cols */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-2.5 items-stretch">
             {/* Row 1 Left: Today's Tasks */}
-            <div className="md:col-span-5 h-[225px]">
+            <div className="md:col-span-5 min-h-[260px] flex">
               <TodaysTasksWidget
                 tasks={tasks}
                 onToggleTask={onToggleTask}
@@ -109,7 +109,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {/* Row 1 Right: Counselling Summary (This Month) */}
-            <div className="md:col-span-7 h-[225px]">
+            <div className="md:col-span-7 min-h-[260px] flex">
               <CounsellingSummaryChart
                 data={analytics?.counsellingSummary}
                 onViewReports={onViewReports}
@@ -121,7 +121,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
 
             {/* Row 2 Left: Lead Source Breakdown */}
-            <div className="md:col-span-5 h-[180px]">
+            <div className="md:col-span-5 min-h-[290px] flex">
               <LeadSourceBreakdownWidget
                 sources={analytics?.leadSources}
                 onSelectSource={onSelectSource}
@@ -129,7 +129,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             {/* Row 2 Right: Country Interest (Leads) */}
-            <div className="md:col-span-7 h-[180px]">
+            <div className="md:col-span-7 min-h-[290px] flex">
               <CountryInterestWidget
                 data={analytics?.countryInterest}
                 onSelectCountry={onSelectCountry}

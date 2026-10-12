@@ -51,8 +51,8 @@ export const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
               <UserCheck className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="text-[14.5px] font-bold text-[#101d37]">Enrol Student</h2>
-              <p className="text-[11px] text-[#52627a]">Convert lead to formal enrolled student</p>
+              <h2 className="text-[14.5px] font-bold text-[#101d37]">Convert Lead to Student</h2>
+              <p className="text-[11px] text-[#52627a]">Creates the student profile and starts the counselling stage</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded text-[#64748b] hover:bg-slate-200/60">
@@ -111,7 +111,7 @@ export const EnrollStudentModal: React.FC<EnrollStudentModalProps> = ({
               disabled={loading}
               className="px-5 py-2 bg-[#16a34a] hover:bg-[#15803d] text-white rounded font-semibold transition-colors disabled:opacity-50"
             >
-              {loading ? 'Enrolling...' : 'Confirm Enrollment'}
+              {loading ? 'Converting...' : 'Convert to Student'}
             </button>
           </div>
         </div>

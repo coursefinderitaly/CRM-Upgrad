@@ -91,49 +91,49 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
     switch (status) {
       case 'New Lead':
         return (
-          <span className="inline-block px-2 py-0.5 rounded-[4px] bg-[#dbeafe] text-[#1d4ed8] text-[11px] font-medium border border-[#bfdbfe]/50">
+          <span className="inline-block px-1.5 py-0.5 rounded-[4px] bg-[#dbeafe] text-[#1d4ed8] text-[10px] font-medium border border-[#bfdbfe]/50">
             New Lead
           </span>
         );
       case 'Counselling':
         return (
-          <span className="inline-block px-2 py-0.5 rounded-[4px] bg-[#fef3c7] text-[#b45309] text-[11px] font-medium border border-[#fde68a]/50">
+          <span className="inline-block px-1.5 py-0.5 rounded-[4px] bg-[#fef3c7] text-[#b45309] text-[10px] font-medium border border-[#fde68a]/50">
             Counselling
           </span>
         );
       case 'Interested':
         return (
-          <span className="inline-block px-2 py-0.5 rounded-[4px] bg-[#ede9fe] text-[#6d28d9] text-[11px] font-medium border border-[#ddd6fe]/50">
+          <span className="inline-block px-1.5 py-0.5 rounded-[4px] bg-[#ede9fe] text-[#6d28d9] text-[10px] font-medium border border-[#ddd6fe]/50">
             Interested
           </span>
         );
       case 'Enrolled':
         return (
-          <span className="inline-block px-2 py-0.5 rounded-[4px] bg-[#dcfce7] text-[#15803d] text-[11px] font-medium border border-[#bbf7d0]/50">
+          <span className="inline-block px-1.5 py-0.5 rounded-[4px] bg-[#dcfce7] text-[#15803d] text-[10px] font-medium border border-[#bbf7d0]/50">
             Enrolled
           </span>
         );
       case 'Follow-up':
         return (
-          <span className="inline-block px-2 py-0.5 rounded-[4px] bg-[#ffe4e6] text-[#be123c] text-[11px] font-medium border border-[#fecdd3]/50">
+          <span className="inline-block px-1.5 py-0.5 rounded-[4px] bg-[#ffe4e6] text-[#be123c] text-[10px] font-medium border border-[#fecdd3]/50">
             Follow-up
           </span>
         );
       case 'On Hold':
         return (
-          <span className="inline-block px-2 py-0.5 rounded-[4px] bg-[#f1f5f9] text-[#475569] text-[11px] font-medium border border-[#e2e8f0]">
+          <span className="inline-block px-1.5 py-0.5 rounded-[4px] bg-[#f1f5f9] text-[#475569] text-[10px] font-medium border border-[#e2e8f0]">
             On Hold
           </span>
         );
       case 'Lost':
         return (
-          <span className="inline-block px-2 py-0.5 rounded-[4px] bg-[#fee2e2] text-[#b91c1c] text-[11px] font-medium border border-[#fecaca]/50">
+          <span className="inline-block px-1.5 py-0.5 rounded-[4px] bg-[#fee2e2] text-[#b91c1c] text-[10px] font-medium border border-[#fecaca]/50">
             Lost
           </span>
         );
       default:
         return (
-          <span className="inline-block px-2 py-0.5 rounded-[4px] bg-slate-100 text-slate-700 text-[11px] font-medium">
+          <span className="inline-block px-1.5 py-0.5 rounded-[4px] bg-slate-100 text-slate-700 text-[11px] font-medium">
             {status}
           </span>
         );
@@ -277,11 +277,23 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
 
       {/* Main Content: Table View */}
       {viewMode === 'table' ? (
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-[#f8fafc] border-b border-[#e5edf5] text-[11px] font-bold text-[#52627a] uppercase tracking-wider">
-                <th className="w-8 px-2 py-2 text-center">
+        <div className="overflow-y-auto max-h-[360px]">
+          <table className="w-full table-fixed text-left border-collapse">
+            <colgroup>
+              <col className="w-[30px]" />
+              <col className="w-[22px]" />
+              <col className="w-[15%]" />
+              <col className="w-[11%]" />
+              <col className="w-[13%]" />
+              <col className="w-[10%]" />
+              <col className="w-[11%]" />
+              <col className="w-[11%]" />
+              <col className="w-[9%]" />
+              <col className="w-[108px]" />
+            </colgroup>
+            <thead className="sticky top-0 z-10">
+              <tr className="bg-[#f8fafc] border-b border-[#e5edf5] text-[10px] font-bold text-[#52627a] uppercase tracking-wide whitespace-nowrap">
+                <th className="px-1.5 py-1.5 text-center">
                   <input
                     type="checkbox"
                     checked={selectedRowIds.size === leads.length && leads.length > 0}
@@ -289,19 +301,19 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                     className="w-3.5 h-3.5 rounded border-slate-300 text-[#087cf5] focus:ring-0"
                   />
                 </th>
-                <th className="w-6 px-1 py-2 text-center text-[#8496b0]">#</th>
-                <th className="px-2 py-2">Student Name</th>
-                <th className="px-2 py-2">Country Interest</th>
-                <th className="px-2 py-2">Course Interest</th>
-                <th className="px-2 py-2">Lead Source</th>
-                <th className="px-2 py-2">Last Activity</th>
-                <th className="px-2 py-2">Next Follow-up</th>
-                <th className="px-2 py-2">Status</th>
-                <th className="px-2 py-2 text-center">Actions</th>
+                <th className="px-1 py-1.5 text-center text-[#8496b0]">#</th>
+                <th className="px-1.5 py-1.5">Student Name</th>
+                <th className="px-1.5 py-1.5">Country Interest</th>
+                <th className="px-1.5 py-1.5">Course Interest</th>
+                <th className="px-1.5 py-1.5">Lead Source</th>
+                <th className="px-1.5 py-1.5">Last Activity</th>
+                <th className="px-1.5 py-1.5">Next Follow-up</th>
+                <th className="px-1.5 py-1.5">Status</th>
+                <th className="px-1.5 py-1.5 text-center">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#edf2f7] text-[12px] text-[#101d37]">
-              {filteredLeads.slice(0, 5).map((lead, index) => {
+            <tbody className="divide-y divide-[#edf2f7] text-[11px] text-[#101d37]">
+              {filteredLeads.map((lead, index) => {
                 const isSelected = selectedLeadId === lead.id;
                 const isChecked = selectedRowIds.has(lead.id);
 
@@ -316,7 +328,7 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                     }`}
                   >
                     {/* Checkbox */}
-                    <td className="px-3 py-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-2 py-1.5 text-center" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={isChecked}
@@ -327,13 +339,13 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                     </td>
 
                     {/* Row Index */}
-                    <td className="px-1 py-2 text-center text-[#8496b0] text-[11px]">
+                    <td className="px-1 py-1.5 text-center text-[#8496b0] text-[11px]">
                       {index + 1}
                     </td>
 
                     {/* Student Name & Avatar & Phone */}
-                    <td className="px-2 py-2">
-                      <div className="flex items-center gap-1.5">
+                    <td className="px-1.5 py-1.5">
+                      <div className="flex items-center gap-1.5 min-w-0">
                         <img
                           src={
                             lead.studentName === 'Rahul Sharma'
@@ -349,13 +361,13 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                               : lead.avatarUrl || '/avatars/row_rahul.png'
                           }
                           alt={lead.studentName}
-                          className="w-5 h-5 rounded-full object-cover border border-slate-200 shrink-0"
+                          className="w-5 h-5 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
                         />
-                        <div>
-                          <div className="font-semibold text-[#101d37] leading-tight">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-[#101d37] leading-tight truncate">
                             {lead.studentName}
                           </div>
-                          <div className="text-[10px] text-[#64748b] leading-tight mt-0.5">
+                          <div className="text-[10px] text-[#64748b] leading-tight mt-0.5 truncate">
                             {lead.phone}
                           </div>
                         </div>
@@ -363,43 +375,45 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                     </td>
 
                     {/* Country Interest with flag */}
-                    <td className="px-2 py-2 font-medium text-[#101d37] whitespace-nowrap">
-                      <span className="mr-1 text-sm">{getFlag(lead.countryInterest)}</span>
-                      <span>{lead.countryInterest}</span>
+                    <td className="px-1.5 py-1.5 font-medium text-[#101d37]">
+                      <span className="flex items-center min-w-0">
+                        <span className="mr-1 text-sm shrink-0">{getFlag(lead.countryInterest)}</span>
+                        <span className="truncate">{lead.countryInterest}</span>
+                      </span>
                     </td>
 
                     {/* Course Interest */}
-                    <td className="px-2 py-2 text-[#334155] max-w-[130px] truncate">
+                    <td className="px-1.5 py-1.5 text-[#334155] truncate">
                       {lead.courseInterest}
                     </td>
 
                     {/* Lead Source */}
-                    <td className="px-2 py-2 text-[#52627a] whitespace-nowrap">
+                    <td className="px-1.5 py-1.5 text-[#52627a] truncate">
                       {lead.leadSource}
                     </td>
 
                     {/* Last Activity */}
-                    <td className="px-2 py-2 text-[#52627a] whitespace-nowrap">
+                    <td className="px-1.5 py-1.5 text-[#52627a] whitespace-nowrap">
                       {lead.lastActivity}
                     </td>
 
                     {/* Next Follow-up (red highlight matching screenshot) */}
-                    <td className="px-2 py-2 text-[#e11d48] font-medium whitespace-nowrap">
+                    <td className="px-1.5 py-1.5 text-[#e11d48] font-medium whitespace-nowrap">
                       {lead.nextFollowUp}
                     </td>
 
                     {/* Status Badge */}
-                    <td className="px-2 py-2 whitespace-nowrap">
+                    <td className="px-1.5 py-1.5 whitespace-nowrap">
                       {getStatusBadge(lead.status)}
                     </td>
 
                     {/* Row Actions */}
-                    <td className="px-2 py-2 text-center" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-center gap-1.5">
+                    <td className="px-1.5 py-1.5 text-center" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-1">
                         {/* Green Call button */}
                         <button
                           onClick={() => onOpenPhone(lead)}
-                          className="w-6 h-6 rounded bg-[#22c55e] hover:bg-[#16a34a] text-white flex items-center justify-center transition-colors shadow-xs"
+                          className="w-5 h-5 rounded bg-[#22c55e] hover:bg-[#16a34a] text-white flex items-center justify-center transition-colors shadow-xs"
                           title="Call Lead"
                         >
                           <Phone className="w-3 h-3" />
@@ -408,7 +422,7 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                         {/* WhatsApp button */}
                         <button
                           onClick={() => onOpenWhatsApp(lead)}
-                          className="w-6 h-6 rounded bg-[#10b981]/15 hover:bg-[#10b981]/25 text-[#059669] flex items-center justify-center transition-colors"
+                          className="w-5 h-5 rounded bg-[#10b981]/15 hover:bg-[#10b981]/25 text-[#059669] flex items-center justify-center transition-colors"
                           title="Message on WhatsApp"
                         >
                           <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
@@ -419,7 +433,7 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                         {/* Calendar button */}
                         <button
                           onClick={() => onScheduleFollowUp(lead)}
-                          className="w-6 h-6 rounded bg-slate-100 hover:bg-slate-200 text-[#52627a] flex items-center justify-center transition-colors"
+                          className="w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 text-[#52627a] flex items-center justify-center transition-colors"
                           title="Schedule Follow-up"
                         >
                           <Calendar className="w-3 h-3" />
@@ -431,7 +445,7 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                             onClick={() =>
                               setActiveMenuId(activeMenuId === lead.id ? null : lead.id)
                             }
-                            className="w-6 h-6 rounded hover:bg-slate-100 text-[#64748b] flex items-center justify-center transition-colors"
+                            className="w-5 h-5 rounded hover:bg-slate-100 text-[#64748b] flex items-center justify-center transition-colors"
                           >
                             <MoreVertical className="w-3.5 h-3.5" />
                           </button>
@@ -465,7 +479,7 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                                 className="w-full px-3 py-1.5 text-xs text-[#15803d] hover:bg-green-50 flex items-center gap-2"
                               >
                                 <UserCheck className="w-3 h-3 text-[#15803d]" />
-                                <span>Mark Enrolled</span>
+                                <span>Convert to Student</span>
                               </button>
                               <button
                                 onClick={() => {

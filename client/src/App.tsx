@@ -4,10 +4,16 @@ import { Header } from './components/layout/Header';
 import { DashboardView } from './views/DashboardView';
 import { LeadsView } from './views/LeadsView';
 import { StudentsView } from './views/StudentsView';
+import { DocumentationView } from './views/DocumentationView';
+import { UniversityShortlistingView } from './views/UniversityShortlistingView';
+import { ApplicationsView } from './views/ApplicationsView';
 import { CounsellingView } from './views/CounsellingView';
 import { EnrolmentView } from './views/EnrolmentView';
 import { FollowUpsView } from './views/FollowUpsView';
 import { TasksView } from './views/TasksView';
+import { CommunicationView } from './views/CommunicationView';
+import { ReportsView } from './views/ReportsView';
+import { SettingsView } from './views/SettingsView';
 
 import { AddLeadModal } from './components/modals/AddLeadModal';
 import { EditLeadModal } from './components/modals/EditLeadModal';
@@ -28,10 +34,35 @@ import {
   updateLead,
 } from './services/api';
 import { AnalyticsData, Lead, NotificationItem, Task } from './types/crm';
+import { useWorkflow } from './context/WorkflowContext';
+import { useLocalStorage } from './hooks/useLocalStorage';
 
 export function App() {
-  const [currentRoute, setCurrentRoute] = useState<string>('dashboard');
+  const { convertLeadToStudent, advanceStudentStage, getSectionStudents } = useWorkflow();
+  const getInitialRoute = () => {
+    const raw = window.location.hash.replace('#', '');
+    const route = raw.split('?')[0];
+    return route || 'dashboard';
+  };
+  const [currentRoute, setCurrentRoute] = useState<string>(getInitialRoute);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useLocalStorage<boolean>('crm-sidebar-collapsed', false);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const raw = window.location.hash.replace('#', '');
+      const route = raw.split('?')[0];
+      if (route) setCurrentRoute(route);
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
+
+  const handleNavigate = (route: string) => {
+    const cleanRoute = route.split('?')[0];
+    setCurrentRoute(cleanRoute);
+    window.location.hash = route;
+  };
 
   // Data states
   const [analytics, setAnalytics] = useState<AnalyticsData | undefined>();
@@ -176,11 +207,12 @@ export function App() {
       case 'book-counselling':
         setShowScheduleModal(true);
         break;
-      case 'enrol-student':
-        setShowEnrollModal(true);
+      case 'document-templates':
+      case 'checklist-library':
+        setCurrentRoute('documentation');
         break;
-      case 'transfer-docs':
-        setShowTransferDocsModal(true);
+      case 'help-support':
+        alert('Support Desk: support@studyabroadcrm.com | Toll-Free: 1800-123-7890');
         break;
       default:
         break;
@@ -227,18 +259,27 @@ export function App() {
       {/* 1. Dark Navy Sidebar */}
       <Sidebar
         currentRoute={currentRoute}
-        onNavigate={(route) => setCurrentRoute(route)}
+        onNavigate={handleNavigate}
         unreadLeadsCount={12}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
         onQuickAction={handleQuickAction}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed((prev) => !prev)}
       />
 
       {/* 2. Main Content Canvas */}
-      <div className="flex-1 lg:pl-[240px] flex flex-col min-w-0 min-h-screen">
+      <div
+        className={`flex-1 flex flex-col min-w-0 min-h-screen transition-[padding] duration-300 ${
+          sidebarCollapsed ? 'lg:pl-[76px]' : 'lg:pl-[240px]'
+        }`}
+      >
         {/* Top Header */}
         <Header
-          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onToggleSidebar={() => {
+            if (window.innerWidth >= 1024) setSidebarCollapsed((prev) => !prev);
+            else setSidebarOpen((prev) => !prev);
+          }}
           onAddNewLead={() => setShowAddLeadModal(true)}
           onOpenEmail={() => {
             setModalTargetLead(selectedLead);
@@ -309,31 +350,98 @@ export function App() {
           {currentRoute === 'leads' && (
             <LeadsView
               leads={leads}
+              selectedLead={selectedLead}
               onAddNewLead={() => setShowAddLeadModal(true)}
               onSelectLead={(l) => {
                 setSelectedLead(l);
-                setCurrentRoute('dashboard');
               }}
               onEditLead={openEditLead}
               onEnrollLead={openEnrollLead}
+              onTransferDocs={openTransferDocs}
               onDeleteLead={handleDeleteLead}
               onOpenPhone={openPhone}
               onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
               onScheduleFollowUp={openScheduleFollowUp}
+              onUpdateStatus={handleUpdateStatus}
+              onAddNote={handleAddNote}
             />
           )}
 
-          {currentRoute === 'students' && <StudentsView />}
+          {currentRoute === 'contacted' && (
+            <LeadsView
+              key="contacted"
+              leads={leads}
+              initialStatusFilter="Contacted"
+              onAddNewLead={() => setShowAddLeadModal(true)}
+              onSelectLead={(l) => {
+                setSelectedLead(l);
+              }}
+              onEditLead={openEditLead}
+              onEnrollLead={openEnrollLead}
+              onTransferDocs={openTransferDocs}
+              onDeleteLead={handleDeleteLead}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onScheduleFollowUp={openScheduleFollowUp}
+              onUpdateStatus={handleUpdateStatus}
+              onAddNote={handleAddNote}
+            />
+          )}
+
+          {(currentRoute === 'students' ||
+            currentRoute === 'student-approval' ||
+            currentRoute === 'scholarship' ||
+            currentRoute === 'pre-enrolment' ||
+            currentRoute === 'dov-cimea' ||
+            currentRoute === 'visa-process' ||
+            currentRoute === 'pre-departure') && (
+            <StudentsView
+              onScheduleFollowUp={openScheduleFollowUp}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onNavigate={handleNavigate}
+              onEditLead={openEditLead}
+            />
+          )}
+
+          {currentRoute === 'documentation' && (
+            <DocumentationView
+              students={getSectionStudents('documentation')}
+              onAdvanceStage={advanceStudentStage}
+              onForwardToApplications={() => handleNavigate('university-shortlisting')}
+              onNavigate={handleNavigate}
+            />
+          )}
+
+          {(currentRoute === 'university-shortlisting' || currentRoute === 'final-university') && (
+            <UniversityShortlistingView
+              students={getSectionStudents('shortlisting')}
+              onAdvanceStage={advanceStudentStage}
+              onForwardToApplications={() => handleNavigate('applications')}
+              onNavigate={handleNavigate}
+            />
+          )}
+
+          {(currentRoute === 'applications' || currentRoute === 'offer-letters') && (
+            <ApplicationsView
+              students={getSectionStudents('applications')}
+              onAdvanceStage={advanceStudentStage}
+              onNavigate={handleNavigate}
+            />
+          )}
 
           {currentRoute === 'counselling' && (
             <CounsellingView
-              leads={leads}
-              onScheduleFollowUp={openScheduleFollowUp}
-              onOpenPhone={openPhone}
+              students={getSectionStudents('counselling')}
+              onAdvanceStage={advanceStudentStage}
+              onNavigate={handleNavigate}
             />
           )}
 
-          {currentRoute === 'enrolment' && (
+          {(currentRoute === 'enrolment' || currentRoute === 'finance') && (
             <EnrolmentView
               leads={leads}
               onTransferDocs={openTransferDocs}
@@ -360,6 +468,25 @@ export function App() {
               onAddTask={() => setShowTaskModal(true)}
             />
           )}
+
+          {currentRoute === 'communication' && (
+            <CommunicationView
+              onOpenEmail={() => {
+                setModalTargetLead(selectedLead);
+                setShowEmailModal(true);
+              }}
+              onOpenWhatsApp={() => {
+                setModalTargetLead(selectedLead);
+                setShowWhatsAppModal(true);
+              }}
+            />
+          )}
+
+          {(currentRoute === 'reports' || currentRoute === 'hr') && (
+            <ReportsView analytics={analytics} leads={leads} />
+          )}
+
+          {currentRoute === 'settings' && <SettingsView />}
         </main>
 
       </div>
@@ -393,7 +520,10 @@ export function App() {
         onSuccess={(updated) => {
           setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
           if (selectedLead?.id === updated.id) setSelectedLead(updated);
+          // Workflow hand-off: convert the lead into a student at the Counselling stage.
+          const student = convertLeadToStudent(updated, 'counselling');
           loadDashboardData();
+          handleNavigate(`counselling?id=${student.studentId}`);
         }}
       />
 
@@ -435,7 +565,10 @@ export function App() {
         onSuccess={(updated) => {
           setLeads((prev) => prev.map((l) => (l.id === updated.id ? updated : l)));
           if (selectedLead?.id === updated.id) setSelectedLead(updated);
+          // Register the profile in the workflow at the Documentation stage.
+          const student = convertLeadToStudent(updated, 'documentation');
           loadDashboardData();
+          handleNavigate(`documentation?id=${student.studentId}`);
         }}
       />
     </div>
