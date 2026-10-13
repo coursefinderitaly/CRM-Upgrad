@@ -4,6 +4,7 @@ import {
   FileText,
   Award,
   CreditCard,
+  ClipboardCheck,
   Plane,
   ArrowUpRight,
 } from 'lucide-react';
@@ -31,10 +32,10 @@ export const KpiCardsRow: React.FC<KpiCardsRowProps> = ({
     ).length || 18;
   const offersCount =
     workflowStudents.filter((s) => s.offers && s.offers.length > 0).length || 15;
-  const enrolledCount =
+  const preEnrollmentCount =
     workflowStudents.filter(
-      (s) => s.payment?.agreementStatus === 'Signed' || s.payment?.amountPaid || s.stageNumber >= 4
-    ).length || 12;
+      (s) => s.stageNumber >= 9 || (s.preEnrolment && s.preEnrolment.length > 0)
+    ).length || 8;
   const dovVisaCount =
     workflowStudents.filter(
       (s) => s.stageNumber >= 10 || s.visa?.appointmentDate || s.dov?.status
@@ -81,17 +82,17 @@ export const KpiCardsRow: React.FC<KpiCardsRowProps> = ({
       tooltip: 'Open university applications and offer letters',
     },
     {
-      id: 'enrollment',
-      route: 'enrolment',
-      value: enrolledCount,
-      label: 'Enrollment',
+      id: 'pre-enrollment',
+      route: 'pre-enrolment',
+      value: preEnrollmentCount,
+      label: 'Pre-Enrollment',
       growth: '↑ 18%',
       bg: 'bg-[#fde2eb]',
       hoverBg: 'hover:bg-[#fcd3e1]',
       iconBg: 'bg-[#facad7]',
       iconColor: 'text-[#e11d48]',
-      icon: CreditCard,
-      tooltip: 'Open finance, fee instalments & student enrolment records',
+      icon: ClipboardCheck,
+      tooltip: 'Open Universitaly & national portal pre-enrollment tracking',
     },
     {
       id: 'dov-visa',

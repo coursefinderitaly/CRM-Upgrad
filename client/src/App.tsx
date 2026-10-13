@@ -381,6 +381,8 @@ export function App() {
                   handleNavigate('documentation');
                 } else if (filter === 'offers-letter' || filter === 'offers' || filter === 'applications') {
                   handleNavigate('applications');
+                } else if (filter === 'pre-enrollment' || filter === 'pre-enrolment' || filter === 'preenrollment') {
+                  handleNavigate('pre-enrolment');
                 } else if (filter === 'enrollment' || filter === 'enrolment' || filter === 'enrolled') {
                   handleNavigate('enrolment');
                 } else if (filter === 'dov-visa' || filter === 'visa' || filter === 'dov') {
