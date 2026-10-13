@@ -55,9 +55,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const mainNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'students', label: 'Enrolled Students', icon: Users },
-    { id: 'documentation', label: 'Documentation Completed', icon: FileCheck2 },
     { id: 'university-shortlisting', label: 'University Shortlisting', icon: GraduationCap },
     { id: 'student-approval', label: 'Student Approval', icon: UserCheck },
+    { id: 'documentation', label: 'Documentation Completed', icon: FileCheck2 },
     { id: 'applications', label: 'Application', icon: Send },
     { id: 'offer-letters', label: 'Offer Letter Received', icon: Award },
     { id: 'final-university', label: 'Final University', icon: Building2 },

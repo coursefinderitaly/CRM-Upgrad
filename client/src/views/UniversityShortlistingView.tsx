@@ -5,7 +5,7 @@ import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
 interface UniversityShortlistingViewProps {
   students?: StudentRecord[];
-  onAdvanceStage?: (studentId: string) => any;
+  onAdvanceStage?: (studentId: string, targetStageIdOrNumber?: any) => any;
   onForwardToApplications?: () => void;
   onNavigate?: (route: string) => void;
 }
@@ -240,8 +240,8 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
   // Helper for student shortlisting status
   const getShortlistStatus = (st: StudentRecord) => {
     if (st.stageNumber >= 7) return { status: 'Final Locked', count: 5, color: 'bg-purple-50 text-purple-700 border-purple-200' };
-    if (st.stageNumber >= 4) return { status: 'Approved by Student', count: 4, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (st.stageNumber === 3) return { status: 'Shortlist Ready', count: 4, color: 'bg-blue-50 text-[#087cf5] border-blue-200' };
+    if (st.stageNumber >= 3) return { status: 'Approved by Student', count: 4, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+    if (st.stageNumber === 2) return { status: 'Shortlist Ready', count: 4, color: 'bg-blue-50 text-[#087cf5] border-blue-200' };
     return { status: 'In Review', count: 2, color: 'bg-amber-50 text-amber-700 border-amber-200' };
   };
 
@@ -259,8 +259,8 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
         matchScore: isHighGpa ? '96%' : '88%',
         matchLabel: isHighGpa ? 'Strong Academic Fit' : 'Target Match',
         matchColor: isHighGpa ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-[#087cf5] border-blue-200',
-        consentStatus: stage >= 4 ? 'Signed (Digital OTP)' : stage === 3 ? 'Awaiting Sign-off' : 'Drafting',
-        consentBadge: stage >= 4 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200',
+        consentStatus: stage >= 3 ? 'Signed (Digital OTP)' : stage === 2 ? 'Awaiting Sign-off' : 'Drafting',
+        consentBadge: stage >= 3 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200',
         deadline: '31 Mar (Padova)',
         daysLeft: 28,
         annualTuition: '€2,400 - €3,900',
@@ -1024,14 +1024,14 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
                     studentId: selectedStudent.studentId,
                     studentAvatar: selectedStudent.avatar,
                     country: selectedStudent.country,
-                    currentStageName: 'University Shortlisting (Stage 3)',
-                    targetStageName: 'Student Approval (Stage 4)',
+                    currentStageName: 'University Shortlisting (Stage 2)',
+                    targetStageName: 'Student Approval (Stage 3)',
                     description: `Are you sure you want to lock the shortlist for ${selectedStudent.name} and forward it for Student Approval? The candidate will be notified to review and provide their official approval sign-off.`,
                     confirmLabel: 'Yes, Forward to Student Approval',
                     variant: 'primary',
                     onConfirm: () => {
                       if (onAdvanceStage) {
-                        onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
+                        onAdvanceStage(selectedStudent.studentId || selectedStudent.id, 'student-approval');
                       }
                       showToast(`Shortlist Locked! Forwarded to Student Approval for final sign-off.`);
                       if (onNavigate) {
@@ -1045,7 +1045,7 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
                 className="px-3.5 py-1.5 rounded-[6px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[12px] font-bold flex items-center gap-1.5 shadow-xs transition-colors"
               >
                 <ArrowRight className="w-3.5 h-3.5" />
-                <span>Lock Shortlist & Forward to Student Approval (Stage 4)</span>
+                <span>Lock Shortlist & Forward to Student Approval (Stage 3)</span>
               </button>
             </div>
           </div>

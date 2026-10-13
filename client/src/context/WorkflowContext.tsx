@@ -49,19 +49,9 @@ export const PIPELINE_STAGES: PipelineStage[] = [
     dotClass: 'bg-amber-500',
   },
   {
-    id: 'documentation',
-    label: 'Documentation Completed',
-    stageNumber: 2,
-    route: 'documentation',
-    status: 'Documentation',
-    currentStage: 'Documentation Verification In Progress',
-    badgeClass: 'bg-violet-50 text-violet-700 border-violet-200',
-    dotClass: 'bg-violet-500',
-  },
-  {
     id: 'shortlisting',
     label: 'University Shortlisting',
-    stageNumber: 3,
+    stageNumber: 2,
     route: 'university-shortlisting',
     status: 'Shortlisting',
     currentStage: 'University Shortlisting In Progress',
@@ -71,12 +61,22 @@ export const PIPELINE_STAGES: PipelineStage[] = [
   {
     id: 'student-approval',
     label: 'Student Approval',
-    stageNumber: 4,
+    stageNumber: 3,
     route: 'student-approval',
     status: 'Approval',
     currentStage: 'Student Approval In Progress',
     badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
     dotClass: 'bg-indigo-500',
+  },
+  {
+    id: 'documentation',
+    label: 'Documentation Completed',
+    stageNumber: 4,
+    route: 'documentation',
+    status: 'Documentation',
+    currentStage: 'Documentation Verification In Progress',
+    badgeClass: 'bg-violet-50 text-violet-700 border-violet-200',
+    dotClass: 'bg-violet-500',
   },
   {
     id: 'applications',
@@ -163,14 +163,35 @@ export const PIPELINE_STAGES: PipelineStage[] = [
 export const getStageById = (id: PipelineStageId): PipelineStage =>
   PIPELINE_STAGES.find((s) => s.id === id) || PIPELINE_STAGES[0];
 
-/** Stage for a student currently sitting inside the active pipeline (undefined for later stages like Offers/Visa) */
-export const getPipelineStageForStudent = (student: StudentRecord): PipelineStage | undefined =>
-  PIPELINE_STAGES.find((s) => s.stageNumber === student.stageNumber);
+/** Stage for a student currently sitting inside the active pipeline */
+export const getPipelineStageForStudent = (student: StudentRecord): PipelineStage | undefined => {
+  if (typeof student.stageNumber === 'number') {
+    const byNum = PIPELINE_STAGES.find((s) => s.stageNumber === student.stageNumber);
+    if (byNum) return byNum;
+  }
+  // Fallback match by status
+  const statusStr = (student.overallStatus || '').toLowerCase();
+  const byStatus = PIPELINE_STAGES.find(
+    (s) => s.status.toLowerCase() === statusStr || s.id.toLowerCase() === statusStr
+  );
+  if (byStatus) return byStatus;
 
-/** Next pipeline stage after the one the student is on, if any */
+  // Fallback match by currentStage label
+  const currentStageStr = (student.currentStage || '').toLowerCase();
+  const byCurrent = PIPELINE_STAGES.find(
+    (s) => currentStageStr.includes(s.label.toLowerCase()) || currentStageStr.includes(s.id.toLowerCase())
+  );
+  if (byCurrent) return byCurrent;
+
+  return PIPELINE_STAGES[0];
+};
+
+/** Next pipeline stage after the one the student is on in the new sequence */
 export const getNextStageForStudent = (student: StudentRecord): PipelineStage | undefined => {
-  const idx = PIPELINE_STAGES.findIndex((s) => s.stageNumber === student.stageNumber);
-  if (idx < 0) return undefined;
+  const current = getPipelineStageForStudent(student);
+  if (!current) return undefined;
+  const idx = PIPELINE_STAGES.findIndex((s) => s.id === current.id);
+  if (idx < 0 || idx >= PIPELINE_STAGES.length - 1) return undefined;
   return PIPELINE_STAGES[idx + 1];
 };
 
@@ -179,28 +200,28 @@ export const isStudentInSection = (student: StudentRecord, section: PipelineStag
   switch (section) {
     case 'counselling':
       return true;
-    case 'documentation':
-      return student.stageNumber >= 2;
     case 'shortlisting':
-      return student.stageNumber >= 3;
+      return student.stageNumber >= 2;
     case 'student-approval':
       return student.stageNumber >= 3;
-    case 'applications':
+    case 'documentation':
       return student.stageNumber >= 4;
+    case 'applications':
+      return student.stageNumber >= 5;
     case 'offer-letters':
-      return student.stageNumber >= 5 || (student.offers && student.offers.length > 0);
-    case 'final-university':
       return student.stageNumber >= 6 || (student.offers && student.offers.length > 0);
+    case 'final-university':
+      return student.stageNumber >= 7 || (student.offers && student.offers.length > 0);
     case 'scholarship':
-      return student.stageNumber >= 7;
+      return student.stageNumber >= 8;
     case 'pre-enrolment':
-      return student.stageNumber >= 8;
-    case 'dov-cimea':
-      return student.stageNumber >= 8;
-    case 'visa-process':
-      return student.stageNumber >= 8;
-    case 'pre-departure':
       return student.stageNumber >= 9;
+    case 'dov-cimea':
+      return student.stageNumber >= 10;
+    case 'visa-process':
+      return student.stageNumber >= 11;
+    case 'pre-departure':
+      return student.stageNumber >= 12;
     default:
       return false;
   }
@@ -340,7 +361,7 @@ const buildStudentFromLead = (
 interface WorkflowContextValue {
   students: StudentRecord[];
   convertLeadToStudent: (lead: Lead, stageId?: PipelineStageId) => StudentRecord;
-  advanceStudentStage: (studentId: string) => PipelineStage | null;
+  advanceStudentStage: (studentId: string, targetStageIdOrNumber?: PipelineStageId | number) => PipelineStage | null;
   moveStudentToStage: (studentId: string, stageId: PipelineStageId) => void;
   getSectionStudents: (section: PipelineStageId) => StudentRecord[];
   getStudentById: (studentId: string) => StudentRecord | undefined;
@@ -349,7 +370,7 @@ interface WorkflowContextValue {
 
 const WorkflowContext = createContext<WorkflowContextValue | undefined>(undefined);
 
-const STORAGE_KEY = 'crm-workflow-v6';
+const STORAGE_KEY = 'crm-workflow-v9';
 
 const loadInitialStudents = (): StudentRecord[] => {
   if (typeof window === 'undefined') return INITIAL_STUDENTS;
@@ -406,13 +427,24 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   );
 
   const advanceStudentStage = useCallback(
-    (studentId: string): PipelineStage | null => {
+    (studentId: string, targetStageIdOrNumber?: PipelineStageId | number): PipelineStage | null => {
       // Accepts either the internal record id or the human-readable studentId (e.g. ITA-2027-001)
       const student = students.find((s) => s.id === studentId || s.studentId === studentId);
       if (!student) return null;
-      const next = getNextStageForStudent(student);
+
+      let next: PipelineStage | undefined;
+      if (typeof targetStageIdOrNumber === 'string') {
+        next = PIPELINE_STAGES.find((s) => s.id === targetStageIdOrNumber);
+      } else if (typeof targetStageIdOrNumber === 'number') {
+        next = PIPELINE_STAGES.find((s) => s.stageNumber === targetStageIdOrNumber);
+      }
+
+      if (!next) {
+        next = getNextStageForStudent(student);
+      }
+
       if (!next) return null;
-      setStudents((prev) => prev.map((s) => (s.id === student.id ? applyStage(s, next) : s)));
+      setStudents((prev) => prev.map((s) => (s.id === student.id ? applyStage(s, next!) : s)));
       return next;
     },
     [students]

@@ -50,10 +50,11 @@ interface StageBucket {
 }
 
 const STAGE_BUCKETS: StageBucket[] = [
-  { id: 'counselling', label: 'Counselling', color: '#f59e0b', match: (st) => st.stageNumber === 1 },
-  { id: 'documentation', label: 'Documentation', color: '#8b5cf6', match: (st) => st.stageNumber === 2 },
-  { id: 'shortlisting', label: 'Shortlisting', color: '#087cf5', match: (st) => st.stageNumber === 3 },
-  { id: 'applications', label: 'Applications', color: '#0ea5e9', match: (st) => st.stageNumber >= 4 && st.stageNumber <= 5 },
+  { id: 'counselling', label: 'Enrolled', color: '#f59e0b', match: (st) => st.stageNumber === 1 },
+  { id: 'shortlisting', label: 'Shortlisting', color: '#087cf5', match: (st) => st.stageNumber === 2 },
+  { id: 'student-approval', label: 'Approval', color: '#6366f1', match: (st) => st.stageNumber === 3 },
+  { id: 'documentation', label: 'Documentation', color: '#8b5cf6', match: (st) => st.stageNumber === 4 },
+  { id: 'applications', label: 'Applications', color: '#0ea5e9', match: (st) => st.stageNumber === 5 },
   { id: 'offers', label: 'Offers', color: '#16a34a', match: (st) => st.stageNumber >= 6 && st.stageNumber <= 9 },
   { id: 'visa', label: 'Visa', color: '#ea580c', match: (st) => st.stageNumber >= 10 && st.stageNumber <= 11 },
   { id: 'ready', label: 'Ready', color: '#7c3aed', match: (st) => st.stageNumber >= 12 },

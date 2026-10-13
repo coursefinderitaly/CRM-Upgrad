@@ -7,7 +7,7 @@ import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
 interface ApplicationsViewProps {
   students?: StudentRecord[];
-  onAdvanceStage?: (studentId: string) => PipelineStage | null;
+  onAdvanceStage?: (studentId: string, targetStageIdOrNumber?: any) => PipelineStage | null;
   onNavigate?: (route: string) => void;
 }
 import {
@@ -215,7 +215,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
   const getAppSummary = (st: StudentRecord) => {
     if (st.stageNumber >= 12) return { status: 'Enrolled', count: '4 Applied • Visa Issued', color: 'bg-purple-50 text-purple-700 border-purple-200' };
     if (st.stageNumber >= 6) return { status: 'Offer Received', count: `${st.applications.length || 3} Applied • ${st.offers.length || 1} Offer`, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (st.stageNumber >= 4) return { status: 'Submitted', count: `${st.applications.length || 2} In Review`, color: 'bg-blue-50 text-[#087cf5] border-blue-200' };
+    if (st.stageNumber >= 5) return { status: 'Submitted', count: `${st.applications.length || 2} In Review`, color: 'bg-blue-50 text-[#087cf5] border-blue-200' };
     return { status: 'In Draft', count: '1 Draft Form', color: 'bg-amber-50 text-amber-700 border-amber-200' };
   };
 
@@ -234,7 +234,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
         decisions: { offers: stage >= 6 ? 1 : 0, underReview: stage >= 6 ? 2 : 3, rejections: 0 },
         nextMilestone: stage >= 6 ? 'Accept Bologna Offer by 28 Feb' : 'Padova Decision: 15 Mar',
         daysLeft: 14,
-        stageLabel: stage >= 12 ? 'Enrolled' : stage >= 6 ? 'Offer Received' : stage >= 4 ? 'Submitted' : 'Drafting',
+        stageLabel: stage >= 12 ? 'Enrolled' : stage >= 6 ? 'Offer Received' : stage >= 5 ? 'Submitted' : 'Drafting',
         stageBadge: stage >= 6 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-[#087cf5] border-blue-200',
       };
     }
@@ -430,7 +430,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                   confirmLabel: 'Confirm & Forward to Stage 6',
                   variant: 'success',
                   onConfirm: () => {
-                    if (onAdvanceStage) onAdvanceStage(id);
+                    if (onAdvanceStage) onAdvanceStage(id, 'offer-letters');
                     if (onNavigate) onNavigate(`offer-letters?id=${targetStudent.studentId}`);
                   },
                 });
@@ -981,7 +981,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                     variant: 'success',
                     onConfirm: () => {
                       if (onAdvanceStage) {
-                        onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
+                        onAdvanceStage(selectedStudent.studentId || selectedStudent.id, 'offer-letters');
                       }
                       showToast(`Offer recorded! Advancing ${selectedStudent.name} to Stage 6 (Offer Letters).`);
                       if (onNavigate) {

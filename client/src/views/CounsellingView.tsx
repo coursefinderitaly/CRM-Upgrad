@@ -35,10 +35,11 @@ import {
 } from 'lucide-react';
 import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
 import { PipelineStage, getStageById } from '../context/WorkflowContext';
+import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
 interface CounsellingViewProps {
   students?: StudentRecord[];
-  onAdvanceStage?: (studentId: string) => PipelineStage | null;
+  onAdvanceStage?: (studentId: string, targetStageIdOrNumber?: any) => PipelineStage | null;
   onNavigate?: (route: string) => void;
 }
 
@@ -195,6 +196,22 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
   const [newNoteTag, setNewNoteTag] = useState('Counselling Note');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Floating confirmation modal for stage transitions
+  const [confirmModalData, setConfirmModalData] = useState<{
+    isOpen: boolean;
+    title: string;
+    studentName: string;
+    studentId: string;
+    studentAvatar?: string;
+    country?: string;
+    currentStageName: string;
+    targetStageName: string;
+    description: string;
+    confirmLabel?: string;
+    variant?: 'primary' | 'success' | 'warning' | 'danger';
+    onConfirm: () => void;
+  } | null>(null);
+
   // Deep-link support: #counselling?id=<studentId>
   useEffect(() => {
     const handleHash = () => {
@@ -229,19 +246,34 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
     window.location.hash = 'counselling';
   };
 
-  // Stage Advancement Handler: Counselling -> Documentation
-  const handleAdvanceToDocumentation = (st: StudentRecord) => {
-    if (onAdvanceStage) {
-      onAdvanceStage(st.id);
-    }
-    showToast(`✅ ${st.name} successfully advanced to Documentation stage!`);
-    setTimeout(() => {
-      if (onNavigate) {
-        onNavigate(`documentation?id=${st.studentId}`);
-      } else {
-        window.location.hash = `documentation?id=${st.studentId}`;
-      }
-    }, 700);
+  // Stage Advancement Handler: Counselling -> University Shortlisting (Stage 2)
+  const handleAdvanceToShortlisting = (st: StudentRecord) => {
+    setConfirmModalData({
+      isOpen: true,
+      title: 'Advance to University Shortlisting',
+      studentName: st.name,
+      studentId: st.studentId,
+      studentAvatar: st.avatar,
+      country: st.country,
+      currentStageName: 'Stage 1: Enrolled / Counselling',
+      targetStageName: 'Stage 2: University Shortlisting',
+      description: `This will complete counselling consultation for ${st.name} and advance their profile to Stage 2: University Shortlisting to curate university choices and programs.`,
+      confirmLabel: 'Confirm & Forward to Stage 2',
+      variant: 'primary',
+      onConfirm: () => {
+        if (onAdvanceStage) {
+          onAdvanceStage(st.id, 'shortlisting');
+        }
+        showToast(`✅ ${st.name} successfully advanced to University Shortlisting stage!`);
+        setTimeout(() => {
+          if (onNavigate) {
+            onNavigate(`university-shortlisting?id=${st.studentId}`);
+          } else {
+            window.location.hash = `university-shortlisting?id=${st.studentId}`;
+          }
+        }, 700);
+      },
+    });
   };
 
   // Filtered candidate list
@@ -713,12 +745,12 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleAdvanceToDocumentation(st);
+                                  handleAdvanceToShortlisting(st);
                                 }}
-                                className="px-2.5 py-1 rounded-[5px] bg-violet-600 hover:bg-violet-700 text-white font-semibold text-xs transition-colors flex items-center gap-1 shadow-xs"
-                                title="Complete Counselling & Forward to Documentation Stage"
+                                className="px-2.5 py-1 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white font-semibold text-xs transition-colors flex items-center gap-1 shadow-xs"
+                                title="Complete Counselling & Forward to University Shortlisting (Stage 2)"
                               >
-                                <span>Advance to Docs</span>
+                                <span>To Shortlisting</span>
                                 <ArrowRight className="w-3 h-3" />
                               </button>
                             </div>
@@ -835,11 +867,11 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleAdvanceToDocumentation(st);
+                          handleAdvanceToShortlisting(st);
                         }}
-                        className="flex-1 py-1.5 rounded-[5px] bg-violet-600 hover:bg-violet-700 text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1 shadow-xs"
+                        className="flex-1 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-xs font-semibold transition-colors flex items-center justify-center gap-1 shadow-xs"
                       >
-                        <span>To Documentation</span>
+                        <span>To Shortlisting</span>
                         <ArrowRight className="w-3 h-3" />
                       </button>
                     </div>
@@ -961,16 +993,16 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
                 <h3 className="text-sm font-bold text-white">Counselling Consultation Finalized</h3>
               </div>
               <p className="text-xs text-slate-200 max-w-2xl leading-relaxed">
-                Academic eligibility cleared, destination finalized for <strong>{selectedStudent.country}</strong>, and program track confirmed for <strong>{selectedStudent.preferredCourse}</strong>. Advance this candidate to Stage 2 to begin document collection and document verification.
+                Academic eligibility cleared, destination finalized for <strong>{selectedStudent.country}</strong>, and program track confirmed for <strong>{selectedStudent.preferredCourse}</strong>. Advance this candidate to Stage 2 to begin university shortlisting.
               </p>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => handleAdvanceToDocumentation(selectedStudent)}
+                onClick={() => handleAdvanceToShortlisting(selectedStudent)}
                 className="px-4 py-2.5 rounded-[7px] bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold text-xs transition-all shadow-md flex items-center gap-2"
               >
-                <span>Complete Counselling & Advance to Documentation</span>
+                <span>Complete Counselling & Advance to Shortlisting</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -1287,20 +1319,20 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
                 </div>
 
                 {/* Next Stage Readiness */}
-                <div className="p-3.5 rounded-[8px] bg-violet-50/50 border border-violet-200 space-y-2">
+                <div className="p-3.5 rounded-[8px] bg-blue-50/50 border border-blue-200 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700">Stage 2 Handoff</span>
-                    <span className="px-2 py-0.5 rounded bg-violet-100 text-violet-800 font-bold text-[10px]">Documentation</span>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-[#087cf5]">Stage 2 Handoff</span>
+                    <span className="px-2 py-0.5 rounded bg-blue-100 text-[#087cf5] font-bold text-[10px]">Shortlisting</span>
                   </div>
-                  <div className="font-bold text-violet-950 text-sm">Document Collection</div>
+                  <div className="font-bold text-[#101d37] text-sm">University Shortlisting</div>
                   <p className="text-[11.5px] text-slate-600">
-                    Once advanced, documentation desk will request Degree certificate, marksheets, SOP draft, and financial proofs.
+                    Once advanced, the shortlisting team will curate target universities, match program eligibility, and evaluate grade cutoff criteria.
                   </p>
                   <button
-                    onClick={() => handleAdvanceToDocumentation(selectedStudent)}
-                    className="w-full mt-1 py-1.5 rounded-[5px] bg-violet-600 hover:bg-violet-700 text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1 shadow-xs"
+                    onClick={() => handleAdvanceToShortlisting(selectedStudent)}
+                    className="w-full mt-1 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white font-semibold text-xs transition-colors flex items-center justify-center gap-1 shadow-xs"
                   >
-                    <span>Proceed to Documentation</span>
+                    <span>Proceed to University Shortlisting</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -1308,6 +1340,28 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {/* Confirmation Floating Modal Card */}
+      {confirmModalData && (
+        <ActionConfirmModal
+          isOpen={confirmModalData.isOpen}
+          onClose={() => setConfirmModalData(null)}
+          onConfirm={() => {
+            confirmModalData.onConfirm();
+            setConfirmModalData(null);
+          }}
+          title={confirmModalData.title}
+          studentName={confirmModalData.studentName}
+          studentId={confirmModalData.studentId}
+          studentAvatar={confirmModalData.studentAvatar}
+          country={confirmModalData.country}
+          currentStageName={confirmModalData.currentStageName}
+          targetStageName={confirmModalData.targetStageName}
+          description={confirmModalData.description}
+          confirmLabel={confirmModalData.confirmLabel}
+          variant={confirmModalData.variant}
+        />
       )}
     </div>
   );

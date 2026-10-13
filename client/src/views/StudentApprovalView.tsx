@@ -38,7 +38,7 @@ import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
 interface StudentApprovalViewProps {
   students?: StudentRecord[];
-  onAdvanceStage?: (studentId: string) => any;
+  onAdvanceStage?: (studentId: string, targetStageIdOrNumber?: any) => any;
   onNavigate?: (route: string) => void;
   onOpenPhone?: (lead: any) => void;
   onOpenWhatsApp?: (lead: any) => void;
@@ -514,19 +514,19 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
 
     setConfirmModalData({
       isOpen: true,
-      title: 'Approve & Forward to Applications',
+      title: 'Approve & Forward to Documentation Completed',
       studentName: selectedStudent.name,
       studentId: selectedStudent.studentId,
       studentAvatar: selectedStudent.avatar,
       country: selectedStudent.country,
-      currentStageName: 'Stage 4: Student Approval',
-      targetStageName: 'Stage 5: Application',
-      description: `This locks student approval for ${selectedStudent.name} and transfers their approved university shortlist to Stage 5 (Application) to prepare portal submissions.`,
-      confirmLabel: 'Confirm & Forward to Stage 5',
+      currentStageName: 'Stage 3: Student Approval',
+      targetStageName: 'Stage 4: Documentation Completed',
+      description: `This locks student approval for ${selectedStudent.name} and forwards their approved university shortlist to Stage 4 (Documentation Completed) to collect and verify mandatory university documents.`,
+      confirmLabel: 'Confirm & Forward to Stage 4',
       variant: 'success',
       onConfirm: () => {
         if (onAdvanceStage) {
-          onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
+          onAdvanceStage(selectedStudent.studentId || selectedStudent.id, 'documentation');
         }
         setIsLockedForApplications(true);
         setShowSuccessModal(true);
@@ -631,11 +631,11 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
                     Student Approval & Final Consent Directory
                   </h1>
                   <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-200">
-                    <ShieldCheck className="w-3 h-3" /> Stage 4 • Final Shortlist Sign-Off
+                    <ShieldCheck className="w-3 h-3" /> Stage 3 • Final Shortlist Sign-Off
                   </span>
                 </div>
                 <p className="text-[11.5px] text-[#64748b] leading-tight mt-0.5">
-                  Candidate review, priority locking, and digital OTP consent following Stage 3 University Shortlisting before formal Application submission.
+                  Candidate review, priority locking, and digital OTP consent following Stage 2 University Shortlisting before Stage 4 Documentation Completed.
                 </p>
               </div>
             </div>
@@ -672,9 +672,9 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
             </div>
 
             <div className="bg-white border border-[#e5edf5] rounded-[8px] p-2.5 shadow-xs">
-              <span className="text-[10.5px] text-[#64748b] font-medium block">Locked for Applications</span>
+              <span className="text-[10.5px] text-[#64748b] font-medium block">Locked & Approved</span>
               <div className="text-[19px] font-bold text-purple-600 mt-0.5">{dirCounts.locked}</div>
-              <span className="text-[10px] text-purple-600 font-medium">🔒 Transferred to Stage 5</span>
+              <span className="text-[10px] text-purple-600 font-medium">🔒 Transferred to Stage 4</span>
             </div>
           </div>
 
@@ -1078,28 +1078,52 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
                     ✓
                   </span>
                   <div>
-                    <span className="font-bold text-emerald-800 block text-[10.5px]">2. Documentation</span>
-                    <span className="text-[9.5px] text-emerald-600">10/10 verified</span>
-                  </div>
-                </div>
-
-                <div className="p-1.5 rounded bg-emerald-50/70 border border-emerald-200 flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-bold text-[10px] flex items-center justify-center shrink-0">
-                    ✓
-                  </span>
-                  <div>
-                    <span className="font-bold text-emerald-800 block text-[10.5px]">3. Shortlisting</span>
+                    <span className="font-bold text-emerald-800 block text-[10.5px]">2. Shortlisting</span>
                     <span className="text-[9.5px] text-emerald-600">4 Unis ready</span>
                   </div>
                 </div>
 
-                <div className="p-1.5 rounded bg-blue-50 border-2 border-[#087cf5] flex items-center gap-2 shadow-2xs">
-                  <span className="w-5 h-5 rounded-full bg-[#087cf5] text-white font-bold text-[10px] flex items-center justify-center shrink-0 animate-pulse">
+                <div className={`p-1.5 rounded flex items-center gap-2 shadow-2xs ${
+                  isLockedForApplications
+                    ? 'bg-emerald-50/70 border border-emerald-200'
+                    : 'bg-blue-50 border-2 border-[#087cf5]'
+                }`}>
+                  <span className={`w-5 h-5 rounded-full font-bold text-[10px] flex items-center justify-center shrink-0 ${
+                    isLockedForApplications
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-[#087cf5] text-white animate-pulse'
+                  }`}>
+                    {isLockedForApplications ? '✓' : '3'}
+                  </span>
+                  <div>
+                    <span className={`font-bold block text-[10.5px] ${
+                      isLockedForApplications ? 'text-emerald-800' : 'text-[#087cf5]'
+                    }`}>3. Student Approval</span>
+                    <span className={`text-[9.5px] ${
+                      isLockedForApplications ? 'text-emerald-600' : 'text-blue-700 font-semibold'
+                    }`}>{isLockedForApplications ? 'Consent Locked' : 'Active Sign-Off'}</span>
+                  </div>
+                </div>
+
+                <div className={`p-1.5 rounded flex items-center gap-2 ${
+                  isLockedForApplications
+                    ? 'bg-blue-50 border-2 border-[#087cf5]'
+                    : 'bg-slate-50 border border-slate-200'
+                }`}>
+                  <span className={`w-5 h-5 rounded-full font-bold text-[10px] flex items-center justify-center shrink-0 ${
+                    isLockedForApplications
+                      ? 'bg-[#087cf5] text-white animate-pulse'
+                      : 'bg-slate-300 text-slate-700'
+                  }`}>
                     4
                   </span>
                   <div>
-                    <span className="font-bold text-[#087cf5] block text-[10.5px]">4. Student Approval</span>
-                    <span className="text-[9.5px] text-blue-700 font-semibold">Active Sign-Off</span>
+                    <span className={`font-bold block text-[10.5px] ${
+                      isLockedForApplications ? 'text-[#087cf5]' : 'text-slate-600'
+                    }`}>4. Documentation</span>
+                    <span className={`text-[9.5px] ${
+                      isLockedForApplications ? 'text-blue-700 font-semibold' : 'text-slate-400'
+                    }`}>{isLockedForApplications ? 'Ready to Verify' : 'Next Stage'}</span>
                   </div>
                 </div>
 
@@ -1109,7 +1133,7 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
                   </span>
                   <div>
                     <span className="font-bold text-slate-600 block text-[10.5px]">5. Applications</span>
-                    <span className="text-[9.5px] text-slate-400">Next Stage</span>
+                    <span className="text-[9.5px] text-slate-400">Submissions</span>
                   </div>
                 </div>
               </div>
@@ -1446,7 +1470,7 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
 
                 <div className="space-y-2 text-[11.5px] text-slate-600">
                   <p>
-                    Final sign-off locks candidate choices and transitions the profile to <strong>Stage 5: Applications</strong> for portal submission.
+                    Final sign-off locks candidate choices and transitions the profile to <strong>Stage 4: Documentation Completed</strong> to verify mandatory university documents.
                   </p>
                 </div>
 
@@ -1464,21 +1488,21 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
                   <Lock className="w-4 h-4" />
                   <span>
                     {isLockedForApplications
-                      ? 'Approved & Locked (Stage 5 Active)'
-                      : 'Approve & Advance to Application (Stage 5)'}
+                      ? 'Approved & Locked (Stage 4 Active)'
+                      : 'Approve & Advance to Documentation Completed (Stage 4)'}
                   </span>
                 </button>
 
-                {/* Go to Applications Button (if already approved/locked) */}
+                {/* Go to Documentation Completed Button (if already approved/locked) */}
                 {isLockedForApplications && (
                   <button
                     onClick={() => {
-                      if (onNavigate) onNavigate(`applications?id=${selectedStudent.studentId}`);
+                      if (onNavigate) onNavigate(`documentation?id=${selectedStudent.studentId}`);
                     }}
-                    className="w-full py-2 px-3 rounded-[6px] bg-emerald-600 hover:bg-emerald-700 font-bold text-[12px] text-white transition-colors flex items-center justify-center gap-1.5 shadow-xs"
+                    className="w-full py-2 px-3 rounded-[6px] bg-purple-600 hover:bg-purple-700 font-bold text-[12px] text-white transition-colors flex items-center justify-center gap-1.5 shadow-xs"
                   >
-                    <span>Go to Applications View</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+                    <span>Go to Documentation Completed View</span>
+                    <ArrowRight className="w-4 h-4" />
                   </button>
                 )}
 
@@ -1572,7 +1596,7 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
                 Shortlist Approved & Locked!
               </h3>
               <p className="text-[12.5px] text-slate-600 mt-1">
-                <strong>{selectedStudent.name}</strong> ({selectedStudent.studentId}) has officially approved the 3-tier university portfolio. The profile has now advanced to <strong>Stage 5: Applications</strong>.
+                <strong>{selectedStudent.name}</strong> ({selectedStudent.studentId}) has officially approved the 3-tier university portfolio. The profile has now advanced to <strong>Stage 4: Documentation Completed</strong>.
               </p>
             </div>
 
@@ -1601,11 +1625,11 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
               <button
                 onClick={() => {
                   setShowSuccessModal(false);
-                  if (onNavigate) onNavigate(`applications?id=${selectedStudent.studentId}`);
+                  if (onNavigate) onNavigate(`documentation?id=${selectedStudent.studentId}`);
                 }}
                 className="px-4 py-2 rounded-[6px] bg-[#087cf5] hover:bg-[#006ee6] text-[12px] font-bold text-white flex items-center gap-1.5 shadow-xs"
               >
-                <span>Proceed to Applications (Stage 5)</span>
+                <span>Proceed to Documentation Completed (Stage 4)</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -1630,7 +1654,7 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
             </div>
 
             <p className="text-[12px] text-slate-600">
-              Provide feedback or notes regarding which university or course {selectedStudent.name} would like to swap. This case will be flagged for review in Stage 3 Shortlisting.
+              Provide feedback or notes regarding which university or course {selectedStudent.name} would like to swap. This case will be flagged for review in Stage 2 University Shortlisting.
             </p>
 
             <div>

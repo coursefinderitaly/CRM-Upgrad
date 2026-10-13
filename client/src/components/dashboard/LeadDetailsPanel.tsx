@@ -56,9 +56,9 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
 
   // Workflow steps
   const workflowStages = [
-    { key: 'New Lead', label: 'New Lead' },
-    { key: 'Counselling', label: 'Counselling' },
     { key: 'Enrolled', label: 'Enrolled' },
+    { key: 'Shortlisting', label: 'Shortlisting' },
+    { key: 'Approval', label: 'Student Approval' },
     { key: 'Documentation', label: 'Documentation' },
     { key: 'Application', label: 'Application' },
   ];
@@ -68,11 +68,15 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
       case 'New Lead':
       case 'Contacted':
       case 'Interested':
-        return 0;
       case 'Counselling':
       case 'Follow-up':
-        return 1;
       case 'Enrolled':
+        return 0;
+      case 'Shortlisting':
+      case 'University Shortlisting':
+        return 1;
+      case 'Approval':
+      case 'Student Approval':
         return 2;
       case 'Documentation':
       case 'Transferred':

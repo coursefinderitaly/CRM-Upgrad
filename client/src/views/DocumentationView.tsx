@@ -57,7 +57,7 @@ export interface DocumentItem {
 
 interface DocumentationViewProps {
   students?: StudentRecord[];
-  onAdvanceStage?: (studentId: string) => any;
+  onAdvanceStage?: (studentId: string, targetStageIdOrNumber?: any) => any;
   onForwardToShortlisting?: () => void;
   onForwardToApplications?: () => void;
   onNavigate?: (route: string) => void;
@@ -492,31 +492,29 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
     showToast('Internal note saved to student file');
   };
 
-  const handleForwardToShortlisting = () => {
+  const handleForwardToApplications = () => {
     if (!selectedStudent) return;
     setConfirmModalData({
       isOpen: true,
-      title: 'Forward to University Shortlisting?',
+      title: 'Forward to University Applications?',
       studentName: selectedStudent.name,
       studentId: selectedStudent.studentId,
       studentAvatar: selectedStudent.avatar,
       country: selectedStudent.country,
-      currentStageName: 'Documentation Completed (Stage 2)',
-      targetStageName: 'University Shortlisting (Stage 3)',
-      description: `Are you sure you want to approve documents and forward ${selectedStudent.name} to University Shortlisting? The shortlisting team will prepare customized university recommendations.`,
-      confirmLabel: 'Yes, Forward to University Shortlisting',
+      currentStageName: 'Documentation Completed (Stage 4)',
+      targetStageName: 'Application (Stage 5)',
+      description: `Are you sure you want to approve documents and forward ${selectedStudent.name} to the Applications team (Stage 5)? The team will prepare and submit institutional portal applications.`,
+      confirmLabel: 'Yes, Forward to University Applications',
       variant: 'primary',
       onConfirm: () => {
         if (onAdvanceStage) {
-          onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
+          onAdvanceStage(selectedStudent.studentId || selectedStudent.id, 'applications');
         }
-        showToast(`Documents Approved! ${selectedStudent.name} moved to University Shortlisting.`);
-        if (onForwardToShortlisting) {
-          onForwardToShortlisting();
-        } else if (onForwardToApplications) {
+        showToast(`Documents Approved! ${selectedStudent.name} moved to Applications.`);
+        if (onForwardToApplications) {
           onForwardToApplications();
         } else if (onNavigate) {
-          onNavigate(`university-shortlisting?id=${selectedStudent.studentId}`);
+          onNavigate(`applications?id=${selectedStudent.studentId}`);
         }
       },
     });
@@ -1405,23 +1403,23 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
 
             {/* Right Section: Student File Actions & Notes (4 cols) */}
             <div className="lg:col-span-4 space-y-3">
-              {/* Card 1: Forward to University Shortlisting CTA */}
+              {/* Card 1: Forward to University Applications CTA */}
               <div className="bg-gradient-to-br from-[#7c3aed] to-[#5b21b6] text-white rounded-[9px] p-4 shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] uppercase font-bold tracking-wider text-purple-200">Documents Clearance</span>
                   <Sparkles className="w-4 h-4 text-amber-300" />
                 </div>
                 <div>
-                  <h4 className="text-[15px] font-bold leading-tight">Ready for University Shortlisting</h4>
+                  <h4 className="text-[15px] font-bold leading-tight">Ready for University Applications</h4>
                   <p className="text-[11px] text-purple-100 mt-1 leading-snug">
-                    Once all mandatory documents are verified, forward this student file to the university shortlisting team.
+                    Once all mandatory documents are verified, forward this student file to the university application team.
                   </p>
                 </div>
                 <button
-                  onClick={handleForwardToShortlisting}
+                  onClick={handleForwardToApplications}
                   className="w-full py-2 px-3 rounded-[6px] bg-white hover:bg-slate-50 text-[#7c3aed] font-bold text-[12px] flex items-center justify-center gap-1.5 transition-colors shadow-xs"
                 >
-                  <span>Forward to University Shortlisting</span>
+                  <span>Forward to University Applications</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -1525,11 +1523,11 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                   </button>
 
                   <button
-                    onClick={handleForwardToShortlisting}
+                    onClick={handleForwardToApplications}
                     className="col-span-2 py-2 px-2 rounded-[6px] bg-[#087cf5] hover:bg-[#006ee6] text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
                   >
                     <ArrowRight className="w-3.5 h-3.5" />
-                    <span>Approve Documents & Forward to Shortlisting (Stage 3)</span>
+                    <span>Approve Documents & Forward to Applications (Stage 5)</span>
                   </button>
                 </div>
               </div>

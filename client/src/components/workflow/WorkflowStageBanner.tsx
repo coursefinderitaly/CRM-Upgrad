@@ -3,6 +3,7 @@ import { ArrowRight, Inbox } from 'lucide-react';
 import {
   PipelineStage,
   getNextStageForStudent,
+  PIPELINE_STAGES,
 } from '../../context/WorkflowContext';
 import { StudentRecord } from '../../services/studentsData';
 
@@ -33,7 +34,13 @@ export const WorkflowStageBanner: React.FC<WorkflowStageBannerProps> = ({
   emptyHint,
 }) => {
   const selected = students.find((s) => s.id === selectedId) || students[0];
-  const nextStage = selected ? getNextStageForStudent(selected) : undefined;
+  const stageIdx = PIPELINE_STAGES.findIndex((s) => s.id === stage.id);
+  const nextStage =
+    stageIdx >= 0 && stageIdx < PIPELINE_STAGES.length - 1
+      ? PIPELINE_STAGES[stageIdx + 1]
+      : selected
+      ? getNextStageForStudent(selected)
+      : undefined;
 
   return (
     <div className="bg-white rounded-[8px] border border-[#e5edf5] shadow-xs px-3 py-2.5">

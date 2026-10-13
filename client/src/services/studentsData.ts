@@ -119,10 +119,10 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     "counsellor": "Neha Jain",
     "enrollmentDate": "12 Oct 2025",
     "nextFollowUp": "15 Oct 2025",
-    "overallStatus": "Processing",
+    "overallStatus": "Enrolled",
     "priority": "Medium",
-    "currentStage": "Applications In Progress",
-    "stageNumber": 5,
+    "currentStage": "Enrolled & Ready for Shortlisting",
+    "stageNumber": 1,
     "academic": {
       "highestQualification": "B.Tech (Mechanical)",
       "university": "RGPV, Bhopal",
@@ -461,7 +461,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     "overallStatus": "Under Review",
     "priority": "Medium",
     "currentStage": "Documentation Completed",
-    "stageNumber": 2,
+    "stageNumber": 4,
     "academic": {
       "highestQualification": "B.Tech (Mech)",
       "university": "AKTU, Lucknow",
@@ -559,7 +559,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     "overallStatus": "Documentation",
     "priority": "High",
     "currentStage": "Documentation In Progress",
-    "stageNumber": 2,
+    "stageNumber": 4,
     "academic": {
       "highestQualification": "B.Sc (Statistics)",
       "university": "Gujarat University",
@@ -668,7 +668,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     "overallStatus": "Documentation",
     "priority": "High",
     "currentStage": "Documentation In Progress",
-    "stageNumber": 2,
+    "stageNumber": 4,
     "academic": {
       "highestQualification": "B.Tech (IT)",
       "university": "DTU, Delhi",
@@ -1366,7 +1366,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     "overallStatus": "Shortlisting",
     "priority": "Medium",
     "currentStage": "University Shortlisting In Progress",
-    "stageNumber": 3,
+    "stageNumber": 2,
     "academic": {
       "highestQualification": "B.Tech (IT)",
       "university": "Andhra University",
@@ -1462,9 +1462,9 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     "counsellor": "Neha Jain",
     "enrollmentDate": "12 Sep 2025",
     "nextFollowUp": "27 Oct 2025",
-    "overallStatus": "Shortlisting",
+    "overallStatus": "Approval",
     "priority": "Medium",
-    "currentStage": "University Shortlisting In Progress",
+    "currentStage": "Student Approval In Progress",
     "stageNumber": 3,
     "academic": {
       "highestQualification": "B.Sc (Economics)",
@@ -1870,7 +1870,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     "overallStatus": "Shortlisting",
     "priority": "High",
     "currentStage": "University Shortlisting In Progress",
-    "stageNumber": 3,
+    "stageNumber": 2,
     "academic": {
       "highestQualification": "B.E. (Mech)",
       "university": "VNIT Nagpur",

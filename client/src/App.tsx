@@ -520,8 +520,8 @@ export function App() {
             <DocumentationView
               students={getSectionStudents('documentation')}
               onAdvanceStage={advanceStudentStage}
-              onForwardToShortlisting={() => handleNavigate('university-shortlisting')}
-              onForwardToApplications={() => handleNavigate('university-shortlisting')}
+              onForwardToShortlisting={() => handleNavigate('applications')}
+              onForwardToApplications={() => handleNavigate('applications')}
               onNavigate={handleNavigate}
             />
           )}

@@ -265,9 +265,19 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
     window.location.hash = 'students';
   };
 
+  // Keep open student profile synchronized with live workflow state
+  const activeStudent = useMemo(() => {
+    if (!selectedStudent) return null;
+    return (
+      workflowStudents.find(
+        (s) => s.id === selectedStudent.id || s.studentId === selectedStudent.studentId
+      ) || selectedStudent
+    );
+  }, [selectedStudent, workflowStudents]);
+
   // Pipeline (workflow) position for the open profile
-  const selectedPipelineStage = selectedStudent ? getPipelineStageForStudent(selectedStudent) : undefined;
-  const selectedNextStage = selectedStudent ? getNextStageForStudent(selectedStudent) : undefined;
+  const selectedPipelineStage = activeStudent ? getPipelineStageForStudent(activeStudent) : undefined;
+  const selectedNextStage = activeStudent ? getNextStageForStudent(activeStudent) : undefined;
 
   // Floating Confirmation Card State
   const [confirmModalData, setConfirmModalData] = useState<{
@@ -285,25 +295,35 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   } | null>(null);
 
   const handleAdvanceStage = () => {
-    if (!selectedStudent || !selectedNextStage) return;
+    if (!activeStudent || !selectedNextStage) return;
     setConfirmModalData({
       isOpen: true,
       title: `Forward to ${selectedNextStage.label}?`,
-      studentName: selectedStudent.name,
-      studentId: selectedStudent.studentId,
-      studentAvatar: selectedStudent.avatar,
-      country: selectedStudent.country,
+      studentName: activeStudent.name,
+      studentId: activeStudent.studentId,
+      studentAvatar: activeStudent.avatar,
+      country: activeStudent.country,
       currentStageName: selectedPipelineStage?.label || 'Enrolled Students',
       targetStageName: selectedNextStage.label,
-      description: `Are you sure you want to forward ${selectedStudent.name} to "${selectedNextStage.label}"? This will advance the student profile to the next team in the pipeline.`,
+      description: `Are you sure you want to forward ${activeStudent.name} to "${selectedNextStage.label}"? This will advance the student profile to the next team in the pipeline.`,
       confirmLabel: `Yes, Forward to ${selectedNextStage.label}`,
       onConfirm: () => {
-        const next = advanceStudentStage(selectedStudent.id);
+        const next = advanceStudentStage(activeStudent.id, selectedNextStage.id);
         if (next) {
-          setToastMessage(`${selectedStudent.name} moved to ${next.label}`);
+          setSelectedStudent((prev) =>
+            prev
+              ? {
+                  ...prev,
+                  stageNumber: next.stageNumber,
+                  currentStage: next.currentStage,
+                  overallStatus: next.status,
+                }
+              : null
+          );
+          setToastMessage(`${activeStudent.name} moved to ${next.label}`);
           setTimeout(() => setToastMessage(null), 3000);
           if (onNavigate) {
-            onNavigate(`${next.route}?id=${selectedStudent.studentId}`);
+            onNavigate(`${next.route}?id=${activeStudent.studentId}`);
           }
         }
       },
@@ -313,9 +333,9 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   const tabs = [
     'Overview',
     'Enrolment',
-    'Documents',
     'University Shortlisting',
     'Student Approval',
+    'Documents',
     'Applications',
     'Offer Letters',
     'Final University',
@@ -327,21 +347,47 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
     'Timeline',
   ];
 
-  // 12 Stepper stages from the screenshot design
+  // 12 Stepper stages dynamically computed based on student's actual stage in the pipeline
+  const currentStageNum = activeStudent?.stageNumber || 1;
   const stepperStages = [
-    { num: 1, title: 'Enrollment', status: 'Completed', color: 'green', lineColor: 'green' },
-    { num: 2, title: 'Documentation', status: 'Completed', color: 'green', lineColor: 'green' },
-    { num: 3, title: 'Shortlisting', status: 'Completed', color: 'green', lineColor: 'green' },
-    { num: 4, title: 'Student Approval', status: 'Completed', color: 'green', lineColor: 'blue' },
-    { num: 5, title: 'Applications', status: 'In Progress', color: 'blue', lineColor: 'blue' },
-    { num: 6, title: 'Offer Letter', status: 'Received', color: 'blue', lineColor: 'blue' },
-    { num: 7, title: 'Final University', status: 'Selected', color: 'blue', lineColor: 'orange' },
-    { num: 8, title: 'Scholarship', status: 'In Progress', color: 'orange', lineColor: 'orange' },
-    { num: 9, title: 'Pre-Enrolment', status: 'Pending', color: 'orange', lineColor: 'gray' },
-    { num: 10, title: 'DoV / CIMEA', status: 'Not Started', color: 'gray', lineColor: 'gray' },
-    { num: 11, title: 'Visa Process', status: 'Not Started', color: 'gray', lineColor: 'gray' },
-    { num: 12, title: 'Travel & Arrival', status: 'Pending', color: 'gray', isLast: true },
-  ];
+    { num: 1, title: 'Enrollment' },
+    { num: 2, title: 'Shortlisting' },
+    { num: 3, title: 'Student Approval' },
+    { num: 4, title: 'Documentation' },
+    { num: 5, title: 'Applications' },
+    { num: 6, title: 'Offer Letter' },
+    { num: 7, title: 'Final University' },
+    { num: 8, title: 'Scholarship' },
+    { num: 9, title: 'Pre-Enrolment' },
+    { num: 10, title: 'DoV / CIMEA' },
+    { num: 11, title: 'Visa Process' },
+    { num: 12, title: 'Travel & Arrival', isLast: true },
+  ].map((step) => {
+    let status = 'Pending';
+    let color = 'gray';
+    let lineColor = 'gray';
+
+    if (step.num < currentStageNum) {
+      status = 'Completed';
+      color = 'green';
+      lineColor = 'green';
+    } else if (step.num === currentStageNum) {
+      status = 'In Progress';
+      color = 'blue';
+      lineColor = 'blue';
+    } else if (step.num === currentStageNum + 1) {
+      status = 'Next Stage';
+      color = 'orange';
+      lineColor = 'gray';
+    }
+
+    return {
+      ...step,
+      status,
+      color,
+      lineColor,
+    };
+  });
 
   return (
     <div className="p-3 sm:p-4 pb-16 space-y-3 font-sans text-[#101d37] max-w-[1600px] mx-auto min-h-screen">
@@ -940,7 +986,15 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                     if (tab !== 'Overview' && onNavigate) {
                       if (tab === 'Documents') onNavigate('documentation');
                       else if (tab === 'University Shortlisting') onNavigate('university-shortlisting');
+                      else if (tab === 'Student Approval') onNavigate('student-approval');
                       else if (tab === 'Applications') onNavigate('applications');
+                      else if (tab === 'Offer Letters') onNavigate('offers');
+                      else if (tab === 'Final University') onNavigate('final-university');
+                      else if (tab === 'Scholarship') onNavigate('scholarship');
+                      else if (tab === 'Pre-Enrolment') onNavigate('pre-enrolment');
+                      else if (tab === 'DoV / CIMEA') onNavigate('dov-cimea');
+                      else if (tab === 'Visa') onNavigate('visa-process');
+                      else if (tab === 'Pre-Departure') onNavigate('pre-departure');
                       else if (tab === 'Timeline') onNavigate('dashboard');
                     }
                   }}
