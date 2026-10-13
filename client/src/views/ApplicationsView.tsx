@@ -3,6 +3,7 @@ import { ArrowLeft, Eye as EyeIcon, Search, Filter } from 'lucide-react';
 import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
 import { WorkflowStageBanner } from '../components/workflow/WorkflowStageBanner';
 import { PipelineStage, getStageById } from '../context/WorkflowContext';
+import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
 interface ApplicationsViewProps {
   students?: StudentRecord[];
@@ -168,6 +169,20 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
   const [dirCountryFilter, setDirCountryFilter] = useState('All');
   const [dirStatusFilter, setDirStatusFilter] = useState('All');
   const [dirTabFilter, setDirTabFilter] = useState<'All' | 'Offers' | 'Submitted' | 'Draft'>('All');
+  const [confirmModalData, setConfirmModalData] = useState<{
+    isOpen: boolean;
+    title: string;
+    studentName: string;
+    studentId: string;
+    studentAvatar?: string;
+    country?: string;
+    currentStageName: string;
+    targetStageName: string;
+    description: string;
+    confirmLabel: string;
+    variant?: 'primary' | 'success' | 'warning';
+    onConfirm: () => void;
+  } | null>(null);
 
   // Deep-linking support
   useEffect(() => {
@@ -399,7 +414,30 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
               const st = studentList.find((s) => s.id === id);
               if (st) handleOpenStudent(st);
             }}
-            onAdvance={(id) => onAdvanceStage && onAdvanceStage(id)}
+            onAdvance={(id) => {
+              const targetStudent = studentList.find((s) => s.id === id || s.studentId === id);
+              if (targetStudent) {
+                setConfirmModalData({
+                  isOpen: true,
+                  title: 'Forward to Offer Letter Received',
+                  studentName: targetStudent.name,
+                  studentId: targetStudent.studentId,
+                  studentAvatar: targetStudent.avatar,
+                  country: targetStudent.country,
+                  currentStageName: 'Stage 5: Application',
+                  targetStageName: 'Stage 6: Offer Letter Received',
+                  description: `Advance ${targetStudent.name} from Applications to Stage 6 (Offer Letter Received) to log university decisions and acceptance terms.`,
+                  confirmLabel: 'Confirm & Forward to Stage 6',
+                  variant: 'success',
+                  onConfirm: () => {
+                    if (onAdvanceStage) onAdvanceStage(id);
+                    if (onNavigate) onNavigate(`offer-letters?id=${targetStudent.studentId}`);
+                  },
+                });
+              } else if (onAdvanceStage) {
+                onAdvanceStage(id);
+              }
+            }}
             onEmptyAction={() => onNavigate && onNavigate('university-shortlisting')}
             emptyActionLabel="Go to Shortlisting"
             emptyHint="No students have reached the Applications stage yet."
@@ -410,7 +448,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
             <div className="bg-white border border-[#e5edf5] rounded-[8px] p-2.5 shadow-xs">
               <span className="text-[10.5px] text-[#64748b] font-medium block">Total Applicants</span>
               <div className="text-[19px] font-bold text-[#101d37] mt-0.5">{appCounts.All}</div>
-              <span className="text-[10px] text-[#087cf5] font-semibold">● Active Dossiers</span>
+              <span className="text-[10px] text-[#087cf5] font-semibold">● Active Applications</span>
             </div>
 
             <div className="bg-white border border-[#e5edf5] rounded-[8px] p-2.5 shadow-xs">
@@ -582,14 +620,15 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                                   }}
                                   className="w-9 h-9 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
                                 />
-                                <div>
-                                  <div className="font-bold text-[#101d37] group-hover:text-[#087cf5] transition-colors">
+                                <div className="min-w-0">
+                                  <div className="font-bold text-[#101d37] group-hover:text-[#087cf5] transition-colors whitespace-nowrap">
                                     {st.name}
                                   </div>
-                                  <div className="text-[10px] text-[#64748b] font-medium flex items-center gap-1.5 mt-0.5">
-                                    <span>ID: {st.studentId}</span>
-                                    <span>•</span>
-                                    <span>{st.phone}</span>
+                                  <div className="text-[10px] text-[#64748b] font-medium mt-0.5 whitespace-nowrap">
+                                    ID: {st.studentId}
+                                  </div>
+                                  <div className="text-[10px] text-[#64748b] font-medium whitespace-nowrap">
+                                    {st.phone}
                                   </div>
                                 </div>
                               </div>
@@ -899,47 +938,62 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
             </div>
           </div>
 
-          {/* Offer Letter & Visa Progression Action Banner */}
-          <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200 rounded-[9px] p-3 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+          {/* Application Submission & Portal Review Status Banner */}
+          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 border border-blue-200 rounded-[9px] p-3 flex flex-wrap items-center justify-between gap-3 shadow-2xs">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                <Trophy className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-full bg-[#087cf5] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                <Send className="w-4 h-4" />
               </div>
               <div>
                 <div className="text-[13px] font-bold text-[#101d37] flex items-center gap-2">
-                  <span>🎉 Official Offer Letter Received</span>
-                  <span className="px-2 py-0.2 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold border border-emerald-300">
-                    Admit Confirmed
+                  <span>Applications Submitted & Under Review</span>
+                  <span className="px-2 py-0.2 rounded bg-blue-100 text-[#087cf5] text-[10px] font-bold border border-blue-300">
+                    Stage 5 • Portal Sync
                   </span>
                 </div>
                 <div className="text-[11px] text-[#52627a] mt-0.5">
-                  University of Bologna has issued an official admission letter for MSc Computer Science. Deposit confirmation required.
+                  Application files submitted to target universities. Tracking faculty assessment, portal credentials, and awaiting official university decisions.
                 </div>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <button
-                onClick={() => showToast(`Sent official offer letter copy to ${selectedStudent.name} on WhatsApp`)}
+                onClick={() => showToast(`Sent application submission proof to ${selectedStudent.name} on WhatsApp`)}
                 className="px-3 py-1.5 rounded-[6px] bg-white border border-[#cbd5e1] hover:bg-slate-50 text-[#101d37] text-[11.5px] font-semibold flex items-center gap-1.5 shadow-2xs"
               >
                 <Send className="w-3.5 h-3.5 text-[#25D366]" />
-                <span>Share Offer Letter</span>
+                <span>Share Submission Proof</span>
               </button>
               <button
                 onClick={() => {
-                  if (onAdvanceStage) {
-                    onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
-                  }
-                  showToast(`Offer accepted! ${selectedStudent.name} advanced to Enrolment & Visa stage.`);
-                  if (onNavigate) {
-                    onNavigate('enrolment');
-                  }
+                  setConfirmModalData({
+                    isOpen: true,
+                    title: 'Record Offer & Forward to Stage 6',
+                    studentName: selectedStudent.name,
+                    studentId: selectedStudent.studentId,
+                    studentAvatar: selectedStudent.avatar,
+                    country: selectedStudent.country,
+                    currentStageName: 'Stage 5: Application',
+                    targetStageName: 'Stage 6: Offer Letter Received',
+                    description: `This records official admission offer(s) for ${selectedStudent.name} and forwards their file to Stage 6 (Offer Letter Received) to review conditions, scholarships, and acceptance deadlines.`,
+                    confirmLabel: 'Confirm & Forward to Stage 6',
+                    variant: 'success',
+                    onConfirm: () => {
+                      if (onAdvanceStage) {
+                        onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
+                      }
+                      showToast(`Offer recorded! Advancing ${selectedStudent.name} to Stage 6 (Offer Letters).`);
+                      if (onNavigate) {
+                        onNavigate(`offer-letters?id=${selectedStudent.studentId}`);
+                      }
+                    },
+                  });
                 }}
                 className="px-3.5 py-1.5 rounded-[6px] bg-emerald-600 hover:bg-emerald-700 text-white text-[12px] font-bold flex items-center gap-1.5 shadow-xs transition-colors"
               >
-                <ArrowRight className="w-3.5 h-3.5" />
-                <span>Accept Offer & Advance to Enrolment</span>
+                <Trophy className="w-3.5 h-3.5" />
+                <span>Record Offer Received & Advance to Stage 6</span>
               </button>
             </div>
           </div>
@@ -1028,7 +1082,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
           <div className="bg-white border border-[#e2e8f0] rounded-[9px] shadow-xs overflow-hidden">
             <div className="p-3 border-b border-[#f1f5f9]">
               <h3 className="text-[13.5px] font-bold text-[#101d37]">
-                University Applications (Rahul Sharma)
+                University Applications ({selectedStudent.name})
               </h3>
             </div>
 
@@ -1461,6 +1515,28 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
         </div>
       )}
         </div>
+      )}
+
+      {/* Action Confirmation Floating Modal */}
+      {confirmModalData && (
+        <ActionConfirmModal
+          isOpen={confirmModalData.isOpen}
+          title={confirmModalData.title}
+          studentName={confirmModalData.studentName}
+          studentId={confirmModalData.studentId}
+          studentAvatar={confirmModalData.studentAvatar}
+          country={confirmModalData.country}
+          currentStageName={confirmModalData.currentStageName}
+          targetStageName={confirmModalData.targetStageName}
+          description={confirmModalData.description}
+          confirmLabel={confirmModalData.confirmLabel}
+          variant={confirmModalData.variant}
+          onConfirm={() => {
+            confirmModalData.onConfirm();
+            setConfirmModalData(null);
+          }}
+          onClose={() => setConfirmModalData(null)}
+        />
       )}
     </div>
   );

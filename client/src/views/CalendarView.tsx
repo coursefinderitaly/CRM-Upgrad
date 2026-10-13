@@ -280,7 +280,7 @@ export const getInitialEvents = (): CalendarEvent[] => {
       mode: 'Google Meet / Zoom',
       priority: 'Medium',
       status: 'Scheduled',
-      notes: 'Mock interview for EEF Campus France oral test and visa dossier.',
+      notes: 'Mock interview for EEF Campus France oral test and visa file.',
     },
     {
       id: 'evt-14',

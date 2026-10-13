@@ -961,7 +961,7 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
                 <h3 className="text-sm font-bold text-white">Counselling Consultation Finalized</h3>
               </div>
               <p className="text-xs text-slate-200 max-w-2xl leading-relaxed">
-                Academic eligibility cleared, destination finalized for <strong>{selectedStudent.country}</strong>, and program track confirmed for <strong>{selectedStudent.preferredCourse}</strong>. Advance this candidate to Stage 2 to begin document collection and dossier verification.
+                Academic eligibility cleared, destination finalized for <strong>{selectedStudent.country}</strong>, and program track confirmed for <strong>{selectedStudent.preferredCourse}</strong>. Advance this candidate to Stage 2 to begin document collection and document verification.
               </p>
             </div>
 
@@ -1292,7 +1292,7 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
                     <span className="text-[10px] font-bold uppercase tracking-wider text-violet-700">Stage 2 Handoff</span>
                     <span className="px-2 py-0.5 rounded bg-violet-100 text-violet-800 font-bold text-[10px]">Documentation</span>
                   </div>
-                  <div className="font-bold text-violet-950 text-sm">Dossier Collection</div>
+                  <div className="font-bold text-violet-950 text-sm">Document Collection</div>
                   <p className="text-[11.5px] text-slate-600">
                     Once advanced, documentation desk will request Degree certificate, marksheets, SOP draft, and financial proofs.
                   </p>

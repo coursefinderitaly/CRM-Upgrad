@@ -82,7 +82,7 @@ export const EnrolmentView: React.FC<EnrolmentViewProps> = ({
                       onClick={() => onSelectLead(item)}
                       className="text-[#087cf5] hover:underline font-semibold text-xs"
                     >
-                      View Dossier
+                      View File
                     </button>
                   )}
                 </td>

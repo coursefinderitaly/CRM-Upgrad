@@ -15,6 +15,16 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  FileCheck2,
+  UserCheck,
+  Award,
+  Building2,
+  Sparkles,
+  ClipboardCheck,
+  Stamp,
+  Plane,
+  Compass,
+  Library,
 } from 'lucide-react';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
 
@@ -41,42 +51,30 @@ export const Sidebar: React.FC<SidebarProps> = ({
   // Organisation branding comes from Settings → Organisation (falls back to a neutral product name)
   const [org] = useLocalStorage<{ orgName: string }>('crm-settings-org', { orgName: '' });
 
-  // Primary operational sections: clean, focused, relatable
+  // Primary study abroad operational lifecycle stages as configured
   const mainNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'leads', label: 'Leads', icon: Users, badge: unreadLeadsCount },
-    {
-      id: 'students',
-      label: 'Students',
-      icon: () => (
-        <svg
-          className="w-4 h-4"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <rect width="18" height="18" x="3" y="3" rx="2" />
-          <circle cx="12" cy="10" r="3" />
-          <path d="M7 17a5 5 0 0 1 10 0" />
-        </svg>
-      ),
-    },
-    { id: 'counselling', label: 'Counselling', icon: Headphones },
-    { id: 'documentation', label: 'Documentation', icon: FileText },
+    { id: 'students', label: 'Enrolled Students', icon: Users },
+    { id: 'documentation', label: 'Documentation Completed', icon: FileCheck2 },
     { id: 'university-shortlisting', label: 'University Shortlisting', icon: GraduationCap },
-    { id: 'applications', label: 'Applications', icon: Send },
-    { id: 'enrolment', label: 'Finance & Enrolment', icon: CreditCard },
+    { id: 'student-approval', label: 'Student Approval', icon: UserCheck },
+    { id: 'applications', label: 'Application', icon: Send },
+    { id: 'offer-letters', label: 'Offer Letter Received', icon: Award },
+    { id: 'final-university', label: 'Final University', icon: Building2 },
+    { id: 'scholarship', label: 'Scholarship', icon: Sparkles },
+    { id: 'pre-enrolment', label: 'Pre-Enrollment', icon: ClipboardCheck },
+    { id: 'dov-cimea', label: 'DOV and CIMEA', icon: Stamp },
+    { id: 'visa-process', label: 'Visa', icon: Plane },
+    { id: 'pre-departure', label: 'Pre-Departure & Arrival', icon: Compass },
   ];
 
   // Secondary management sections below divider
   const secondaryNavItems = [
-    { id: 'tasks', label: 'Tasks & Follow-ups', icon: CheckSquare, badge: 16 },
-    { id: 'calendar', label: 'Calendar & Schedule', icon: Calendar, badge: 8 },
+    { id: 'tasks', label: 'Tasks & Follow-ups', icon: CheckSquare },
+    { id: 'calendar', label: 'Calendar & Schedule', icon: Calendar },
     { id: 'communication', label: 'Communications', icon: MessageSquare },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
+    { id: 'resources', label: 'Resources', icon: Library },
     { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
@@ -84,7 +82,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     id: string;
     label: string;
     icon: React.ElementType;
-    badge?: number;
   }) => {
     const isActive = currentRoute === item.id;
     const Icon = item.icon;
@@ -109,18 +106,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
             className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-[#8ca0ba]'}`}
           />
           <span className={`truncate ${isCollapsed ? 'lg:hidden' : ''}`}>{item.label}</span>
-          {item.badge !== undefined && (
-            <span
-              className={`ml-auto px-1.5 py-0.2 rounded-full bg-[#ef4444] text-white text-[10px] font-bold leading-normal shrink-0 ${
-                isCollapsed ? 'lg:hidden' : ''
-              }`}
-            >
-              {item.badge}
-            </span>
-          )}
-          {item.badge !== undefined && isCollapsed && (
-            <span className="hidden lg:block absolute -top-1 -right-1 w-2 h-2 rounded-full bg-[#ef4444] ring-2 ring-[#07182c]" />
-          )}
         </div>
       </button>
     );

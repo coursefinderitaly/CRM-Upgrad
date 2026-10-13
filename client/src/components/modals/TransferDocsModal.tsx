@@ -52,7 +52,7 @@ export const TransferDocsModal: React.FC<TransferDocsModalProps> = ({
             <div>
 
               <h2 className="text-[14.5px] font-bold text-[#101d37]">Transfer to Documentation</h2>
-              <p className="text-[11px] text-[#52627a]">Assign dossier to documentation verification team</p>
+              <p className="text-[11px] text-[#52627a]">Assign student file to documentation verification team</p>
             </div>
           </div>
           <button onClick={onClose} className="p-1 rounded text-[#64748b] hover:bg-slate-200/60">

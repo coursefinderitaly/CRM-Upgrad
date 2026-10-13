@@ -452,7 +452,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ analytics, leads = [] 
             <div className="bg-white p-3 rounded-[8px] border border-[#e5edf5] shadow-xs">
               <span className="text-[10.5px] text-[#64748b] font-medium block">Docs Verified</span>
               <div className="text-[20px] font-bold text-[#7c3aed] mt-0.5">{kpis.docsVerifiedPct}%</div>
-              <span className="text-[10px] text-[#64748b]">Avg. dossier completion</span>
+              <span className="text-[10px] text-[#64748b]">Avg. document completion</span>
             </div>
           </div>
 

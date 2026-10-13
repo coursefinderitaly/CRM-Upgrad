@@ -39,6 +39,7 @@ import {
   FileUp,
 } from 'lucide-react';
 import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
 export interface DocumentItem {
   id: number;
@@ -116,7 +117,7 @@ const generateDefaultChecklistForStudent = (student: StudentRecord): DocumentIte
       { id: 6, category: 'Language', name: 'IELTS / PTE / TOEFL Score Report', status: 'Approved', submittedOn: '22 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'ielts_band7_priya.pdf', fileSize: '910 KB' },
       { id: 7, category: 'Statements', name: 'Statement of Purpose (SOP - Final Draft)', status: 'Approved', submittedOn: '23 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'sop_polimi_design.pdf', fileSize: '340 KB' },
       { id: 8, category: 'Statements', name: 'Letters of Recommendation (LOR - 2 Academic)', status: 'Approved', submittedOn: '24 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: 'lor_priya_academic.pdf', fileSize: '700 KB' },
-      { id: 9, category: 'Statements', name: 'Portfolio / Design Dossier', status: 'Approved', submittedOn: '25 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: 'portfolio_priya_design.pdf', fileSize: '8.4 MB' },
+      { id: 9, category: 'Statements', name: 'Portfolio / Design Portfolio', status: 'Approved', submittedOn: '25 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: 'portfolio_priya_design.pdf', fileSize: '8.4 MB' },
       { id: 10, category: 'Financial', name: 'Bank Solvency & Financial Statement', status: 'Under Review', submittedOn: '28 Sep 2025', verifiedBy: 'Amit Kumar', fileUrl: 'bank_statement_priya.pdf', fileSize: '1.8 MB' },
       { id: 11, category: 'Financial', name: 'Affidavit of Financial Support', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
       { id: 12, category: 'Academic', name: 'CIMEA / Declaration of Value (Italy)', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
@@ -155,7 +156,7 @@ const generateDefaultChecklistForStudent = (student: StudentRecord): DocumentIte
       { id: 9, category: 'Statements', name: 'Curriculum Vitae (CV - French/EuroPass)', status: 'Under Review', submittedOn: '05 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: 'cv_amit_kumar.pdf', fileSize: '390 KB' },
       { id: 10, category: 'Financial', name: 'Bank Solvency & Financial Statement', status: 'Re-upload Required', submittedOn: '06 Oct 2025', verifiedBy: 'Amit Kumar', fileUrl: 'bank_letter_rough.pdf', fileSize: '980 KB', notes: 'Bank seal not legible, submit original scan' },
       { id: 11, category: 'Financial', name: 'Affidavit of Financial Support', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-      { id: 12, category: 'Academic', name: 'Campus France EEF Dossier Number', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
+      { id: 12, category: 'Academic', name: 'Campus France EEF Application Number', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
     ];
   }
 
@@ -203,6 +204,20 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
     { id: 2, text: 'Bank solvency proof requires balance stamp from nationalized bank', time: '08 Oct 2025, 11:15 AM', author: 'Rohit Verma' },
   ]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [confirmModalData, setConfirmModalData] = useState<{
+    isOpen: boolean;
+    title: string;
+    studentName: string;
+    studentId: string;
+    studentAvatar?: string;
+    country?: string;
+    currentStageName: string;
+    targetStageName: string;
+    description: string;
+    confirmLabel: string;
+    variant?: 'primary' | 'success' | 'warning';
+    onConfirm: () => void;
+  } | null>(null);
 
   // Per-student checklists store with persistence
   const [studentChecklists, setStudentChecklists] = useState<Record<string, DocumentItem[]>>(() => {
@@ -472,7 +487,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
       ...prev,
     ]);
     setNewNoteInput('');
-    showToast('Internal note saved to dossier');
+    showToast('Internal note saved to student file');
   };
 
   // Compute live student document summary (directory reactive)
@@ -575,14 +590,14 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
               <div>
                 <div className="flex items-center gap-2">
                   <h1 className="text-[18px] font-bold text-[#101d37] leading-tight">
-                    Document Verification & Dossier Hub
+                    Document Verification & Student Files Hub
                   </h1>
                   <span className="px-2 py-0.5 rounded-full bg-purple-50 text-[#7c3aed] border border-purple-200 text-[10.5px] font-bold">
                     Official Verification
                   </span>
                 </div>
                 <p className="text-[11.5px] text-[#64748b] leading-tight mt-0.5">
-                  Verify academic credentials, manage mandatory checklists, and prepare embassy-ready student dossiers
+                  Verify academic credentials, manage mandatory checklists, and prepare embassy-ready student documents
                 </p>
               </div>
             </div>
@@ -598,17 +613,17 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                   title="Document Matrix Ledger"
                 >
                   <List className="w-3.5 h-3.5" />
-                  <span>Dossier Matrix</span>
+                  <span>Document Table</span>
                 </button>
                 <button
                   onClick={() => setViewMode('cards')}
                   className={`flex items-center gap-1 px-2.5 py-1 rounded-[5px] text-[11px] font-semibold transition-colors ${
                     viewMode === 'cards' ? 'bg-[#7c3aed] text-white shadow-xs' : 'text-[#64748b] hover:text-[#101d37]'
                   }`}
-                  title="Dossier Visual Cards"
+                  title="Student Document Cards"
                 >
                   <LayoutGrid className="w-3.5 h-3.5" />
-                  <span>Dossier Cards</span>
+                  <span>Document Cards</span>
                 </button>
               </div>
 
@@ -618,17 +633,17 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
             </div>
           </div>
 
-          {/* Dossier Health & KPI Summary Grid */}
+          {/* Document Health & KPI Summary Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-3">
             {/* Left 4 KPI Cards (8 cols) */}
             <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               <div className="bg-white border border-[#e5edf5] rounded-[9px] p-3 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] text-[#64748b] font-medium">Total Dossiers</span>
+                  <span className="text-[11px] text-[#64748b] font-medium">Total Student Files</span>
                   <FolderOpen className="w-4 h-4 text-[#7c3aed]" />
                 </div>
                 <div className="text-[20px] font-bold text-[#101d37] mt-1">{docCounts.All}</div>
-                <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 inline-block">● Active dossiers</span>
+                <span className="text-[10px] text-emerald-600 font-semibold mt-0.5 inline-block">● Active student files</span>
               </div>
 
               <div className="bg-white border border-[#e5edf5] rounded-[9px] p-3 shadow-xs">
@@ -663,7 +678,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
             <div className="lg:col-span-4 bg-gradient-to-br from-[#faf5ff] to-white border border-purple-100 rounded-[9px] p-3 shadow-xs flex flex-col justify-between">
               <div>
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-[#7c3aed] uppercase tracking-wider">Overall Dossier Health</span>
+                  <span className="text-[11px] font-bold text-[#7c3aed] uppercase tracking-wider">Overall Documents Health</span>
                   <span className="text-[13px] font-black text-[#7c3aed]">
                     {Math.round(
                       (studentList.reduce((acc, st) => acc + getDocSummary(st).pct, 0) / (studentList.length || 1))
@@ -693,7 +708,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
               {/* Quick Tab Filters */}
               <div className="flex items-center gap-1.5 overflow-x-auto text-[11.5px]">
                 {[
-                  { id: 'All', label: `All Dossiers (${docCounts.All})` },
+                  { id: 'All', label: `All Files (${docCounts.All})` },
                   { id: 'Verified', label: `Ready for Submission (${docCounts.Verified})` },
                   { id: 'In Review', label: `Verification Queue (${docCounts.InReview})` },
                   { id: 'Pending', label: `Pending Uploads (${docCounts.Pending})` },
@@ -719,7 +734,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[12px] font-semibold transition-colors shadow-xs"
               >
                 <Eye className="w-3.5 h-3.5" />
-                <span>Open Sample Dossier ({studentList[0]?.name || 'Rahul Sharma'})</span>
+                <span>Open Sample File ({studentList[0]?.name || 'Rahul Sharma'})</span>
               </button>
             </div>
 
@@ -731,7 +746,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search student dossier by name, student ID, mobile, course, university..."
+                  placeholder="Search student file by name, student ID, mobile, course, university..."
                   className="w-full bg-[#f8fafc] border border-[#e2e8f0] focus:border-[#7c3aed] focus:bg-white rounded-[6px] pl-8 pr-3 py-1.5 text-[12px] text-[#101d37] outline-none transition-all"
                 />
               </div>
@@ -767,7 +782,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
             </div>
           </div>
 
-          {/* VIEW MODE 1: DOSSIER MATRIX TABLE */}
+          {/* VIEW MODE 1: MATRIX TABLE */}
           {viewMode === 'ledger' && (
             <div className="bg-white rounded-[9px] border border-[#e5edf5] shadow-xs overflow-hidden flex flex-col">
               <div className="overflow-x-auto overflow-y-auto max-h-[640px] scrollbar-thin">
@@ -775,11 +790,11 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                   <thead className="sticky top-0 bg-[#f8fafc] z-10 border-b border-[#e5edf5] shadow-2xs">
                     <tr className="text-[#52627a] font-bold text-[11px] uppercase tracking-wider">
                       <th className="py-2.5 px-3">#</th>
-                      <th className="py-2.5 px-3">Student & Dossier ID</th>
+                      <th className="py-2.5 px-3">Student & File ID</th>
                       <th className="py-2.5 px-3">Destination & University</th>
                       <th className="py-2.5 px-3">Program</th>
                       <th className="py-2.5 px-3 text-center">Core Document Matrix</th>
-                      <th className="py-2.5 px-3">Dossier Health</th>
+                      <th className="py-2.5 px-3">Document Health</th>
                       <th className="py-2.5 px-3">Assigned Officer</th>
                       <th className="py-2.5 px-3">Status</th>
                       <th className="py-2.5 px-3 text-right">Actions</th>
@@ -909,7 +924,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                                   onClick={() => handleOpenStudent(st)}
                                   className="px-2.5 py-1 rounded-[5px] bg-purple-50 text-[#7c3aed] hover:bg-[#7c3aed] hover:text-white font-semibold text-[11px] transition-colors shadow-2xs"
                                 >
-                                  Open Dossier
+                                  Open Student File
                                 </button>
                                 <button
                                   onClick={() => showToast(`WhatsApp document checklist link shared with ${st.name}`)}
@@ -926,7 +941,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                     ) : (
                       <tr>
                         <td colSpan={9} className="py-8 text-center text-[#64748b] text-xs">
-                          No student dossiers found matching your search and filter criteria.
+                          No student files found matching your search and filter criteria.
                         </td>
                       </tr>
                     )}
@@ -938,7 +953,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
               <div className="px-3.5 py-2.5 bg-[#f8fafc] border-t border-[#e5edf5] flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-[#64748b]">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-[#101d37]">
-                    Showing <span className="font-bold text-[#7c3aed]">{filteredStudents.length}</span> of {studentList.length} dossiers
+                    Showing <span className="font-bold text-[#7c3aed]">{filteredStudents.length}</span> of {studentList.length} student files
                   </span>
                   <span className="hidden sm:inline text-slate-300">|</span>
                   <span className="hidden sm:inline text-[11px] text-slate-500">
@@ -948,14 +963,14 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                    Live Dossier Tracking
+                    Live Document Tracking
                   </span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* VIEW MODE 2: DOSSIER CARDS GRID */}
+          {/* VIEW MODE 2: CARDS GRID */}
           {viewMode === 'cards' && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
               {filteredStudents.map((st) => {
@@ -1001,7 +1016,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                         {/* Progress bar */}
                         <div>
                           <div className="flex justify-between text-[11px] font-semibold text-[#101d37] mb-1">
-                            <span className="text-[#64748b]">Dossier Completion</span>
+                            <span className="text-[#64748b]">Documents Completion</span>
                             <span className="text-[#7c3aed] font-bold">{docInfo.verified}/{docInfo.total} ({docInfo.pct}%)</span>
                           </div>
                           <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
@@ -1028,7 +1043,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                         }}
                         className="px-2.5 py-1 rounded-[5px] bg-purple-50 text-[#7c3aed] hover:bg-[#7c3aed] hover:text-white font-semibold transition-colors"
                       >
-                        Inspect Dossier &gt;
+                        Inspect Student File &gt;
                       </button>
                     </div>
                   </div>
@@ -1154,7 +1169,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
 
               <div className="w-full">
                 <div className="flex justify-between text-[11px] font-bold text-[#101d37] mb-1">
-                  <span className="text-slate-500 font-normal">Dossier Completion</span>
+                  <span className="text-slate-500 font-normal">Documents Completion</span>
                   <span className="text-[#7c3aed]">
                     {verifiedCount} / {currentChecklist.length} Verified
                   </span>
@@ -1224,16 +1239,25 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                  <table className="w-full table-fixed text-left text-[11px]">
+                    <colgroup>
+                      <col className="w-7" />
+                      <col />
+                      <col className="w-[82px]" />
+                      <col className="w-[92px]" />
+                      <col className="w-[82px]" />
+                      <col className="w-[70px]" />
+                      <col className="w-[220px]" />
+                    </colgroup>
                     <thead>
-                      <tr className="bg-[#f8fafc] border-b border-[#e5edf5] text-[#52627a] font-bold text-[10.5px]">
-                        <th className="px-2.5 py-2 w-8">#</th>
-                        <th className="px-3 py-2">Document Name</th>
-                        <th className="px-3 py-2">Category</th>
-                        <th className="px-3 py-2">Status</th>
-                        <th className="px-3 py-2">Submitted On</th>
-                        <th className="px-3 py-2">Verified By</th>
-                        <th className="px-3 py-2 text-right">Verification Action</th>
+                      <tr className="bg-[#f8fafc] border-b border-[#e5edf5] text-[#52627a] font-bold text-[10px]">
+                        <th className="px-2 py-2 w-6">#</th>
+                        <th className="px-2 py-2">Document Name</th>
+                        <th className="px-2 py-2">Category</th>
+                        <th className="px-2 py-2">Status</th>
+                        <th className="px-2 py-2">Submitted</th>
+                        <th className="px-2 py-2">Verified By</th>
+                        <th className="px-2 py-2 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#f1f5f9]">
@@ -1241,38 +1265,38 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                         .filter((item) => activeCategory === 'All' || item.category === activeCategory)
                         .map((doc) => (
                           <tr key={doc.id} className="hover:bg-slate-50/70 transition-colors">
-                            <td className="px-2.5 py-2.5 text-slate-400 font-mono text-[11px]">{doc.id}</td>
-                            <td className="px-3 py-2.5 font-medium text-[#101d37]">
-                              <div className="font-semibold text-[#101d37]">{doc.name}</div>
+                            <td className="px-2 py-2 text-slate-400 font-mono text-[10px]">{doc.id}</td>
+                            <td className="px-2 py-2 font-medium text-[#101d37]">
+                              <div className="font-semibold text-[11px] text-[#101d37] leading-snug">{doc.name}</div>
                               {doc.fileUrl !== '-' ? (
-                                <div className="flex items-center gap-1.5 mt-0.5">
+                                <div className="flex items-center gap-1 mt-0.5">
                                   <button
                                     onClick={() => handleOpenPreview(doc)}
-                                    className="text-[10.5px] text-[#7c3aed] hover:underline cursor-pointer flex items-center gap-1 font-mono"
+                                    className="text-[10px] text-[#7c3aed] hover:underline cursor-pointer flex items-center gap-1 font-mono truncate min-w-0"
                                     title="Click to preview file"
                                   >
-                                    <Paperclip className="w-3 h-3" />
-                                    <span>{doc.fileUrl}</span>
+                                    <Paperclip className="w-2.5 h-2.5 shrink-0" />
+                                    <span className="truncate">{doc.fileUrl}</span>
                                   </button>
                                   {doc.fileSize && (
-                                    <span className="text-[9.5px] text-slate-400">({doc.fileSize})</span>
+                                    <span className="text-[9px] text-slate-400 shrink-0">({doc.fileSize})</span>
                                   )}
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-slate-400 italic">No file attached</span>
+                                <span className="text-[9.5px] text-slate-400 italic">No file attached</span>
                               )}
                               {doc.notes && (
-                                <div className="text-[10px] text-amber-600 mt-0.5">Note: {doc.notes}</div>
+                                <div className="text-[9.5px] text-amber-600 mt-0.5">Note: {doc.notes}</div>
                               )}
                             </td>
-                            <td className="px-3 py-2.5 text-[#64748b] text-[11px]">
+                            <td className="px-2 py-2 text-[#64748b] text-[10px]">
                               <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 font-medium">
                                 {doc.category}
                               </span>
                             </td>
-                            <td className="px-3 py-2.5">
+                            <td className="px-2 py-2">
                               <span
-                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10.5px] font-semibold ${
+                                className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-semibold ${
                                   doc.status === 'Approved'
                                     ? 'bg-[#dcfce7] text-[#15803d]'
                                     : doc.status === 'Received'
@@ -1284,18 +1308,18 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                                     : 'bg-slate-100 text-slate-500'
                                 }`}
                               >
-                                {doc.status === 'Approved' && <Check className="w-3 h-3 stroke-[2.5]" />}
+                                {doc.status === 'Approved' && <Check className="w-2.5 h-2.5 stroke-[2.5]" />}
                                 {doc.status}
                               </span>
                             </td>
-                            <td className="px-3 py-2.5 text-slate-500 text-[11px]">{doc.submittedOn}</td>
-                            <td className="px-3 py-2.5 text-slate-700 text-[11px] font-medium">{doc.verifiedBy}</td>
-                            <td className="px-3 py-2.5 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
+                            <td className="px-2 py-2 text-slate-500 text-[10px] whitespace-nowrap">{doc.submittedOn}</td>
+                            <td className="px-2 py-2 text-slate-700 text-[10px] font-medium">{doc.verifiedBy}</td>
+                            <td className="px-2 py-2 text-right">
+                              <div className="flex flex-nowrap items-center justify-end gap-1">
                                 {/* Dedicated Upload / Re-upload button for this row */}
                                 <button
                                   onClick={() => handleOpenUploadModal(doc.id)}
-                                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded font-semibold text-[11px] transition-colors shadow-2xs ${
+                                  className={`inline-flex items-center gap-1 px-1.5 py-1 rounded font-semibold text-[10px] transition-colors shadow-2xs whitespace-nowrap ${
                                     doc.status === 'Re-upload Required'
                                       ? 'bg-rose-600 hover:bg-rose-700 text-white'
                                       : doc.fileUrl === '-'
@@ -1304,14 +1328,14 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                                   }`}
                                   title={`Upload / Replace file for ${doc.name}`}
                                 >
-                                  <Upload className="w-3 h-3" />
+                                  <Upload className="w-2.5 h-2.5" />
                                   <span>{doc.fileUrl === '-' ? 'Upload' : 'Replace'}</span>
                                 </button>
 
                                 {doc.status !== 'Approved' && doc.status !== 'Pending' && (
                                   <button
                                     onClick={() => handleVerify(doc.id)}
-                                    className="px-2 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10.5px] transition-colors shadow-2xs"
+                                    className="px-1.5 py-1 rounded bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-[10px] transition-colors shadow-2xs whitespace-nowrap"
                                     title="Verify & mark Approved"
                                   >
                                     Verify
@@ -1321,7 +1345,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                                 {doc.status !== 'Re-upload Required' && doc.status !== 'Pending' && (
                                   <button
                                     onClick={() => handleRequestReupload(doc.id)}
-                                    className="px-2 py-1 rounded bg-rose-50 text-rose-700 hover:bg-rose-100 font-semibold text-[10.5px] transition-colors"
+                                    className="px-1.5 py-1 rounded bg-rose-50 text-rose-700 hover:bg-rose-100 font-semibold text-[10px] transition-colors whitespace-nowrap"
                                     title="Request Re-upload from Student"
                                   >
                                     Re-upload
@@ -1334,7 +1358,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                                     className="p-1 text-slate-500 hover:text-[#7c3aed] hover:bg-slate-100 rounded transition-colors"
                                     title="Preview file"
                                   >
-                                    <Eye className="w-3.5 h-3.5" />
+                                    <Eye className="w-3 h-3" />
                                   </button>
                                 )}
                               </div>
@@ -1352,13 +1376,13 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
               {/* Card 1: Forward to Application Team CTA */}
               <div className="bg-gradient-to-br from-[#7c3aed] to-[#5b21b6] text-white rounded-[9px] p-4 shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] uppercase font-bold tracking-wider text-purple-200">Dossier Clearance</span>
+                  <span className="text-[11px] uppercase font-bold tracking-wider text-purple-200">Documents Clearance</span>
                   <Sparkles className="w-4 h-4 text-amber-300" />
                 </div>
                 <div>
                   <h4 className="text-[15px] font-bold leading-tight">Ready for University Applications</h4>
                   <p className="text-[11px] text-purple-100 mt-1 leading-snug">
-                    Once all mandatory documents are stamped, forward this dossier to the university application team.
+                    Once all mandatory documents are stamped, forward this student file to the university application team.
                   </p>
                 </div>
                 <button
@@ -1376,7 +1400,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                 </button>
               </div>
 
-              {/* Card 2: Student Academic Dossier Snapshot */}
+              {/* Card 2: Student Academic Snapshot */}
               <div className="bg-white rounded-[9px] border border-[#e5edf5] p-3.5 shadow-xs space-y-2 text-xs">
                 <div className="flex items-center justify-between pb-1.5 border-b border-slate-100">
                   <span className="font-bold text-[#101d37] text-[13px]">Academic Credentials</span>
@@ -1409,7 +1433,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
               {/* Card 3: Internal Notes & Follow-up Log */}
               <div className="bg-white rounded-[9px] border border-[#e5edf5] p-3.5 shadow-xs space-y-2.5 text-xs">
                 <div className="flex items-center justify-between pb-1 border-b border-slate-100">
-                  <span className="font-bold text-[#101d37] text-[13px]">Internal Dossier Notes</span>
+                  <span className="font-bold text-[#101d37] text-[13px]">Internal Document Notes</span>
                   <span className="text-[10px] text-slate-400">{noteList.length} notes</span>
                 </div>
 
@@ -1445,7 +1469,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
 
               {/* Card 4: Quick Actions */}
               <div className="bg-white rounded-[9px] border border-[#e5edf5] p-3 shadow-xs space-y-2 text-xs">
-                <div className="font-bold text-[#101d37] text-[13px]">Dossier Quick Actions</div>
+                <div className="font-bold text-[#101d37] text-[13px]">Document Quick Actions</div>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     onClick={() => handleOpenUploadModal('new')}
@@ -1476,20 +1500,35 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
 
                   <button
                     onClick={() => {
-                      if (onAdvanceStage) {
-                        onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
-                      }
-                      showToast(`Dossier Approved! ${selectedStudent.name} moved to University Shortlisting.`);
-                      if (onForwardToApplications) {
-                        onForwardToApplications();
-                      } else if (onNavigate) {
-                        onNavigate('university-shortlisting');
-                      }
+                      setConfirmModalData({
+                        isOpen: true,
+                        title: 'Forward to University Shortlisting?',
+                        studentName: selectedStudent.name,
+                        studentId: selectedStudent.studentId,
+                        studentAvatar: selectedStudent.avatar,
+                        country: selectedStudent.country,
+                        currentStageName: 'Documentation Completed (Stage 2)',
+                        targetStageName: 'University Shortlisting (Stage 3)',
+                        description: `Are you sure you want to approve documents and forward ${selectedStudent.name} to University Shortlisting? The shortlisting team will prepare customized university recommendations.`,
+                        confirmLabel: 'Yes, Forward to University Shortlisting',
+                        variant: 'primary',
+                        onConfirm: () => {
+                          if (onAdvanceStage) {
+                            onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
+                          }
+                          showToast(`Documents Approved! ${selectedStudent.name} moved to University Shortlisting.`);
+                          if (onForwardToApplications) {
+                            onForwardToApplications();
+                          } else if (onNavigate) {
+                            onNavigate(`university-shortlisting?id=${selectedStudent.studentId}`);
+                          }
+                        },
+                      });
                     }}
-                    className="col-span-2 py-2 px-2 rounded-[6px] bg-slate-800 hover:bg-slate-900 text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
+                    className="col-span-2 py-2 px-2 rounded-[6px] bg-[#087cf5] hover:bg-[#006ee6] text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
                   >
                     <ArrowRight className="w-3.5 h-3.5" />
-                    <span>Approve Dossier & Advance to Shortlisting</span>
+                    <span>Approve Documents & Forward to Shortlisting (Stage 3)</span>
                   </button>
                 </div>
               </div>
@@ -1550,7 +1589,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                   }}
                   className="w-full bg-[#f8fafc] border border-[#cbd5e1] rounded-[6px] px-3 py-2 text-[12px] text-[#101d37] outline-none focus:border-[#7c3aed]"
                 >
-                  <option value="new">+ Custom / Additional Document (Add to Dossier)</option>
+                  <option value="new">+ Custom / Additional Document (Add to Checklist)</option>
                   {currentChecklist.map((item) => (
                     <option key={item.id} value={item.id}>
                       #{item.id}: {item.name} ({item.status})
@@ -1900,6 +1939,24 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+      {/* Floating Action Confirmation Card */}
+      {confirmModalData && (
+        <ActionConfirmModal
+          isOpen={confirmModalData.isOpen}
+          onClose={() => setConfirmModalData(null)}
+          onConfirm={confirmModalData.onConfirm}
+          title={confirmModalData.title}
+          studentName={confirmModalData.studentName}
+          studentId={confirmModalData.studentId}
+          studentAvatar={confirmModalData.studentAvatar}
+          country={confirmModalData.country}
+          currentStageName={confirmModalData.currentStageName}
+          targetStageName={confirmModalData.targetStageName}
+          description={confirmModalData.description}
+          confirmLabel={confirmModalData.confirmLabel}
+          variant={confirmModalData.variant}
+        />
       )}
     </div>
   );

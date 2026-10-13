@@ -9,7 +9,19 @@ import { INITIAL_STUDENTS, StudentRecord } from '../services/studentsData';
  * Lead -> (Convert to Student) -> Counselling -> Documentation
  *      -> University Shortlisting -> Applications -> [future stages]
  */
-export type PipelineStageId = 'counselling' | 'documentation' | 'shortlisting' | 'applications';
+export type PipelineStageId =
+  | 'counselling'
+  | 'documentation'
+  | 'shortlisting'
+  | 'student-approval'
+  | 'applications'
+  | 'offer-letters'
+  | 'final-university'
+  | 'scholarship'
+  | 'pre-enrolment'
+  | 'dov-cimea'
+  | 'visa-process'
+  | 'pre-departure';
 
 export interface PipelineStage {
   id: PipelineStageId;
@@ -28,21 +40,21 @@ export interface PipelineStage {
 export const PIPELINE_STAGES: PipelineStage[] = [
   {
     id: 'counselling',
-    label: 'Counselling',
+    label: 'Enrolled Students',
     stageNumber: 1,
-    route: 'counselling',
-    status: 'Counselling',
-    currentStage: 'Counselling In Progress',
+    route: 'students',
+    status: 'Enrolled',
+    currentStage: 'Student Profile Onboarded',
     badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
     dotClass: 'bg-amber-500',
   },
   {
     id: 'documentation',
-    label: 'Documentation',
+    label: 'Documentation Completed',
     stageNumber: 2,
     route: 'documentation',
     status: 'Documentation',
-    currentStage: 'Documentation In Progress',
+    currentStage: 'Documentation Verification In Progress',
     badgeClass: 'bg-violet-50 text-violet-700 border-violet-200',
     dotClass: 'bg-violet-500',
   },
@@ -57,14 +69,94 @@ export const PIPELINE_STAGES: PipelineStage[] = [
     dotClass: 'bg-[#087cf5]',
   },
   {
+    id: 'student-approval',
+    label: 'Student Approval',
+    stageNumber: 4,
+    route: 'student-approval',
+    status: 'Approval',
+    currentStage: 'Student Approval In Progress',
+    badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    dotClass: 'bg-indigo-500',
+  },
+  {
     id: 'applications',
-    label: 'Applications',
+    label: 'Application',
     stageNumber: 5,
     route: 'applications',
     status: 'Processing',
     currentStage: 'Applications In Progress',
     badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
     dotClass: 'bg-emerald-500',
+  },
+  {
+    id: 'offer-letters',
+    label: 'Offer Letter Received',
+    stageNumber: 6,
+    route: 'offer-letters',
+    status: 'Offer Received',
+    currentStage: 'Offer Letters & Admission Decisions',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    dotClass: 'bg-emerald-500',
+  },
+  {
+    id: 'final-university',
+    label: 'Final University',
+    stageNumber: 7,
+    route: 'final-university',
+    status: 'Final University',
+    currentStage: 'Final University Choice & Seat Confirmation',
+    badgeClass: 'bg-purple-50 text-purple-700 border-purple-200',
+    dotClass: 'bg-purple-500',
+  },
+  {
+    id: 'scholarship',
+    label: 'Scholarship',
+    stageNumber: 8,
+    route: 'scholarship',
+    status: 'Scholarship',
+    currentStage: 'Scholarship Application In Progress',
+    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
+    dotClass: 'bg-amber-500',
+  },
+  {
+    id: 'pre-enrolment',
+    label: 'Pre-Enrollment',
+    stageNumber: 9,
+    route: 'pre-enrolment',
+    status: 'Pre-Enrollment',
+    currentStage: 'Pre-Enrollment In Progress',
+    badgeClass: 'bg-blue-50 text-[#087cf5] border-blue-200',
+    dotClass: 'bg-[#087cf5]',
+  },
+  {
+    id: 'dov-cimea',
+    label: 'DOV and CIMEA',
+    stageNumber: 10,
+    route: 'dov-cimea',
+    status: 'DOV & CIMEA',
+    currentStage: 'DOV / CIMEA Legalization In Progress',
+    badgeClass: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    dotClass: 'bg-indigo-500',
+  },
+  {
+    id: 'visa-process',
+    label: 'Visa',
+    stageNumber: 11,
+    route: 'visa-process',
+    status: 'Visa Processing',
+    currentStage: 'Visa Application In Progress',
+    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    dotClass: 'bg-emerald-500',
+  },
+  {
+    id: 'pre-departure',
+    label: 'Pre-Departure & Arrival',
+    stageNumber: 12,
+    route: 'pre-departure',
+    status: 'Pre-Departure',
+    currentStage: 'Travel & Arrival Ready',
+    badgeClass: 'bg-teal-50 text-teal-700 border-teal-200',
+    dotClass: 'bg-teal-500',
   },
 ];
 
@@ -86,14 +178,29 @@ export const getNextStageForStudent = (student: StudentRecord): PipelineStage | 
 export const isStudentInSection = (student: StudentRecord, section: PipelineStageId): boolean => {
   switch (section) {
     case 'counselling':
-      return student.stageNumber === 1;
+      return true;
     case 'documentation':
-      return student.stageNumber === 2;
+      return student.stageNumber >= 2;
     case 'shortlisting':
-      return student.stageNumber === 3 || student.stageNumber === 4;
+      return student.stageNumber >= 3;
+    case 'student-approval':
+      return student.stageNumber >= 3;
     case 'applications':
-      // Active application journey (Applications -> Offer/Pre-enrolment band)
-      return student.stageNumber >= 5 && student.stageNumber <= 9;
+      return student.stageNumber >= 4;
+    case 'offer-letters':
+      return student.stageNumber >= 5 || (student.offers && student.offers.length > 0);
+    case 'final-university':
+      return student.stageNumber >= 6 || (student.offers && student.offers.length > 0);
+    case 'scholarship':
+      return student.stageNumber >= 7;
+    case 'pre-enrolment':
+      return student.stageNumber >= 8;
+    case 'dov-cimea':
+      return student.stageNumber >= 8;
+    case 'visa-process':
+      return student.stageNumber >= 8;
+    case 'pre-departure':
+      return student.stageNumber >= 9;
     default:
       return false;
   }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Eye as EyeIcon } from 'lucide-react';
 import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
 interface UniversityShortlistingViewProps {
   students?: StudentRecord[];
@@ -194,6 +195,20 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
   const [dirCountryFilter, setDirCountryFilter] = useState('All');
   const [dirStatusFilter, setDirStatusFilter] = useState('All');
   const [dirTabFilter, setDirTabFilter] = useState<'All' | 'Approved' | 'Ready' | 'In Review' | 'Locked'>('All');
+  const [confirmModalData, setConfirmModalData] = useState<{
+    isOpen: boolean;
+    title: string;
+    studentName: string;
+    studentId: string;
+    studentAvatar?: string;
+    country?: string;
+    currentStageName: string;
+    targetStageName: string;
+    description: string;
+    confirmLabel: string;
+    variant?: 'primary' | 'success' | 'warning';
+    onConfirm: () => void;
+  } | null>(null);
 
   // Deep-linking support
   useEffect(() => {
@@ -587,17 +602,17 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
           {viewMode === 'matrix' ? (
             <div className="bg-white rounded-[8px] border border-[#e5edf5] shadow-xs overflow-hidden flex flex-col">
               <div className="overflow-x-auto overflow-y-auto max-h-[640px] scrollbar-thin">
-                <table className="w-full text-left text-[12px] border-collapse min-w-[1100px]">
+                <table className="w-full text-left text-[12px] border-collapse min-w-[1260px]">
                   <thead className="sticky top-0 bg-[#f8fafc] z-10 border-b border-[#e5edf5] shadow-2xs">
                     <tr className="text-[#52627a] font-bold text-[11px] uppercase tracking-wider">
-                      <th className="py-2.5 px-3">#</th>
-                      <th className="py-2.5 px-3">Student & Academic Profile</th>
-                      <th className="py-2.5 px-3">Destination & Budget</th>
-                      <th className="py-2.5 px-3">3-Tier University Portfolio</th>
-                      <th className="py-2.5 px-3">Academic Match</th>
-                      <th className="py-2.5 px-3">Student Consent</th>
-                      <th className="py-2.5 px-3">Earliest Deadline</th>
-                      <th className="py-2.5 px-3 text-right">Action</th>
+                      <th className="py-3 px-3 text-center w-12 shrink-0">#</th>
+                      <th className="py-3 px-3 min-w-[270px]">Student & Academic Profile</th>
+                      <th className="py-3 px-3 min-w-[210px]">Destination & Budget</th>
+                      <th className="py-3 px-3 min-w-[340px]">3-Tier University Portfolio</th>
+                      <th className="py-3 px-3 min-w-[160px] text-center">Academic Match</th>
+                      <th className="py-3 px-3 min-w-[150px] text-center">Student Consent</th>
+                      <th className="py-3 px-3 min-w-[150px] text-center">Earliest Deadline</th>
+                      <th className="py-3 px-3 min-w-[130px] text-center">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
@@ -610,97 +625,119 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
                             onClick={() => handleOpenStudent(st)}
                             className="hover:bg-blue-50/40 cursor-pointer transition-colors group"
                           >
-                            <td className="py-3 px-3 text-[#64748b]">{idx + 1}</td>
-                            <td className="py-3 px-3">
-                              <div className="flex items-center gap-2.5">
+                            <td className="py-3.5 px-3 text-center text-[#64748b] font-medium text-[11.5px] align-middle">
+                              {idx + 1}
+                            </td>
+                            <td className="py-3.5 px-3 min-w-[270px] align-middle">
+                              <div className="flex items-center gap-3">
                                 <img
                                   src={st.avatar}
                                   alt={st.name}
                                   onError={(e) => {
                                     (e.target as HTMLImageElement).src = '/avatars/rahul.png';
                                   }}
-                                  className="w-9 h-9 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
+                                  className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
                                 />
-                                <div>
-                                  <div className="font-bold text-[#101d37] group-hover:text-[#087cf5] transition-colors">
+                                <div className="min-w-0">
+                                  <div className="font-bold text-[#101d37] group-hover:text-[#087cf5] transition-colors text-[13px] leading-snug whitespace-nowrap">
                                     {st.name}
                                   </div>
-                                  <div className="text-[10px] text-[#64748b] font-medium flex items-center gap-1.5 mt-0.5">
-                                    <span>ID: {st.studentId}</span>
-                                    <span>•</span>
-                                    <span className="px-1.5 py-0.2 rounded bg-slate-100 font-semibold text-slate-700">
+                                  <div className="text-[10.5px] text-[#64748b] font-medium flex items-center gap-1.5 mt-1 whitespace-nowrap">
+                                    <span className="font-mono text-slate-500 font-semibold">ID: {st.studentId}</span>
+                                    <span className="text-slate-300">•</span>
+                                    <span className="px-1.5 py-0.5 rounded bg-slate-100 font-bold text-slate-700">
                                       GPA: {st.academic.cgpa}
                                     </span>
-                                    <span className="px-1.5 py-0.2 rounded bg-blue-50 font-semibold text-[#087cf5]">
+                                    <span className="px-1.5 py-0.5 rounded bg-blue-50 font-bold text-[#087cf5] border border-blue-100">
                                       {st.academic.englishTest}
                                     </span>
                                   </div>
                                 </div>
                               </div>
                             </td>
-                            <td className="py-3 px-3">
-                              <div className="font-medium text-[#101d37] flex items-center gap-1.5">
-                                <span>
+                            <td className="py-3.5 px-3 min-w-[210px] align-middle">
+                              <div className="font-semibold text-[#101d37] text-[12px] flex items-center gap-1.5 whitespace-nowrap">
+                                <span className="text-sm">
                                   {st.country === 'Italy' ? '🇮🇹' : st.country === 'Germany' ? '🇩🇪' : st.country === 'UK' ? '🇬🇧' : st.country === 'France' ? '🇫🇷' : '🇮🇪'}
                                 </span>
-                                <span className="font-semibold">{st.country}</span>
-                                <span className="text-[10px] text-slate-400">({st.intake})</span>
+                                <span>{st.country}</span>
+                                <span className="text-[10.5px] text-slate-400 font-normal">({st.intake})</span>
                               </div>
-                              <div className="text-[10.5px] text-[#64748b] mt-0.5 truncate max-w-[170px]">
-                                {pf.annualTuition} • <span className="text-emerald-600 font-medium">{pf.budgetFit}</span>
+                              <div className="text-[11px] text-[#64748b] mt-1 flex items-center gap-1.5 whitespace-nowrap">
+                                <span className="font-medium text-slate-700">{pf.annualTuition}</span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-emerald-600 font-semibold">{pf.budgetFit}</span>
                               </div>
                             </td>
-                            <td className="py-3 px-3">
-                              <div className="flex flex-col gap-1 py-0.5 max-w-[310px]">
-                                <div className="flex items-center gap-1.5 text-[11px]">
-                                  <span className="px-1.5 py-0.2 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[9.5px] font-bold shrink-0">
+                            <td className="py-3.5 px-3 min-w-[340px] align-middle">
+                              <div className="flex flex-col gap-1.5 py-0.5 max-w-[360px]">
+                                <div className="flex items-center gap-2 text-[11.5px] whitespace-nowrap">
+                                  <span className="w-[66px] shrink-0 text-center px-1.5 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 text-[9.5px] font-bold">
                                     🌟 Dream
                                   </span>
-                                  <span className="font-semibold text-slate-800 truncate">{pf.dream}</span>
+                                  <span className="font-semibold text-slate-800 truncate" title={pf.dream}>
+                                    {pf.dream}
+                                  </span>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-[11px]">
-                                  <span className="px-1.5 py-0.2 rounded bg-blue-50 text-blue-800 border border-blue-200 text-[9.5px] font-bold shrink-0">
+                                <div className="flex items-center gap-2 text-[11.5px] whitespace-nowrap">
+                                  <span className="w-[66px] shrink-0 text-center px-1.5 py-0.5 rounded bg-blue-50 text-blue-800 border border-blue-200 text-[9.5px] font-bold">
                                     🎯 Target
                                   </span>
-                                  <span className="text-slate-700 truncate">{pf.target.join(' • ')}</span>
+                                  <span className="text-slate-700 truncate font-medium" title={pf.target.join(' • ')}>
+                                    {pf.target.join(' • ')}
+                                  </span>
                                 </div>
-                                <div className="flex items-center gap-1.5 text-[11px]">
-                                  <span className="px-1.5 py-0.2 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[9.5px] font-bold shrink-0">
+                                <div className="flex items-center gap-2 text-[11.5px] whitespace-nowrap">
+                                  <span className="w-[66px] shrink-0 text-center px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 text-[9.5px] font-bold">
                                     🛡️ Safe
                                   </span>
-                                  <span className="text-slate-600 truncate">{pf.safe}</span>
+                                  <span className="text-slate-600 truncate" title={pf.safe}>
+                                    {pf.safe}
+                                  </span>
                                 </div>
                               </div>
                             </td>
-                            <td className="py-3 px-3">
-                              <span className={`px-2 py-0.5 rounded-[4px] text-[10.5px] font-semibold border ${pf.matchColor}`}>
+                            <td className="py-3.5 px-3 min-w-[160px] text-center align-middle">
+                              <span className={`inline-flex items-center justify-center px-2.5 py-1 rounded-[5px] text-[11px] font-semibold border whitespace-nowrap shadow-2xs ${pf.matchColor}`}>
                                 {pf.matchScore} • {pf.matchLabel}
                               </span>
                             </td>
-                            <td className="py-3 px-3">
-                              <span className={`px-2 py-0.5 rounded-[4px] text-[10.5px] font-semibold border ${pf.consentBadge}`}>
-                                {pf.consentStatus}
-                              </span>
-                            </td>
-                            <td className="py-3 px-3">
-                              <div className="font-semibold text-slate-800 text-[11px] flex items-center gap-1">
-                                <Clock className="w-3 h-3 text-[#64748b]" />
-                                <span>{pf.deadline}</span>
-                              </div>
-                              <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 inline-block mt-0.5">
-                                {pf.daysLeft}d left
-                              </span>
-                            </td>
-                            <td className="py-3 px-3 text-right">
+                            <td className="py-3.5 px-3 min-w-[150px] text-center align-middle">
                               <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onNavigate) onNavigate(`student-approval?id=${st.studentId}`);
+                                }}
+                                title="Open Student Approval window for this candidate"
+                                className={`inline-flex items-center justify-center gap-1 px-2.5 py-1 rounded-[5px] text-[11px] font-semibold border whitespace-nowrap shadow-2xs hover:shadow transition-all cursor-pointer ${pf.consentBadge}`}
+                              >
+                                <span>{pf.consentStatus}</span>
+                                <span className="text-[10px] font-bold">→</span>
+                              </button>
+                            </td>
+                            <td className="py-3.5 px-3 min-w-[150px] text-center align-middle">
+                              <div className="inline-flex flex-col items-center">
+                                <div className="font-semibold text-slate-800 text-[11.5px] flex items-center justify-center gap-1.5 whitespace-nowrap">
+                                  <Clock className="w-3.5 h-3.5 text-[#64748b] shrink-0" />
+                                  <span>{pf.deadline}</span>
+                                </div>
+                                <span className="text-[10px] text-amber-700 font-bold bg-amber-50 px-2 py-0.5 rounded border border-amber-200/80 inline-block mt-1 whitespace-nowrap shadow-2xs">
+                                  {pf.daysLeft}d left
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-3 min-w-[130px] text-center align-middle">
+                              <button
+                                type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   handleOpenStudent(st);
                                 }}
-                                className="px-2.5 py-1 rounded-[5px] bg-blue-50 text-[#087cf5] hover:bg-[#087cf5] hover:text-white font-semibold text-[11px] transition-colors inline-flex items-center gap-1 shadow-xs"
+                                className="px-3 py-1.5 rounded-[5px] bg-blue-50 text-[#087cf5] hover:bg-[#087cf5] hover:text-white font-semibold text-[11px] transition-all inline-flex items-center justify-center gap-1.5 whitespace-nowrap shadow-xs hover:shadow group/btn"
                               >
                                 <span>View Shortlist</span>
-                                <span>&gt;</span>
+                                <span className="transition-transform group-hover/btn:translate-x-0.5 font-bold">&gt;</span>
                               </button>
                             </td>
                           </tr>
@@ -980,20 +1017,35 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
               </button>
               <button
                 onClick={() => {
-                  if (onAdvanceStage) {
-                    onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
-                  }
-                  showToast(`Shortlist Locked! ${selectedStudent.name} advanced to Applications.`);
-                  if (onForwardToApplications) {
-                    onForwardToApplications();
-                  } else if (onNavigate) {
-                    onNavigate('applications');
-                  }
+                  setConfirmModalData({
+                    isOpen: true,
+                    title: 'Lock Shortlist & Forward to Student Approval?',
+                    studentName: selectedStudent.name,
+                    studentId: selectedStudent.studentId,
+                    studentAvatar: selectedStudent.avatar,
+                    country: selectedStudent.country,
+                    currentStageName: 'University Shortlisting (Stage 3)',
+                    targetStageName: 'Student Approval (Stage 4)',
+                    description: `Are you sure you want to lock the shortlist for ${selectedStudent.name} and forward it for Student Approval? The candidate will be notified to review and provide their official approval sign-off.`,
+                    confirmLabel: 'Yes, Forward to Student Approval',
+                    variant: 'primary',
+                    onConfirm: () => {
+                      if (onAdvanceStage) {
+                        onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
+                      }
+                      showToast(`Shortlist Locked! Forwarded to Student Approval for final sign-off.`);
+                      if (onNavigate) {
+                        onNavigate(`student-approval?id=${selectedStudent.studentId}`);
+                      } else if (onForwardToApplications) {
+                        onForwardToApplications();
+                      }
+                    },
+                  });
                 }}
                 className="px-3.5 py-1.5 rounded-[6px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[12px] font-bold flex items-center gap-1.5 shadow-xs transition-colors"
               >
                 <ArrowRight className="w-3.5 h-3.5" />
-                <span>Lock Shortlist & Proceed to Applications</span>
+                <span>Lock Shortlist & Forward to Student Approval (Stage 4)</span>
               </button>
             </div>
           </div>
@@ -1245,21 +1297,21 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
 
             {/* Table */}
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-[11.5px] border-collapse">
+              <table className="w-full text-left text-[11.5px] border-collapse min-w-[1020px]">
                 <thead>
                   <tr className="bg-[#f8fafc] text-[#64748b] font-medium border-b border-[#e2e8f0]">
-                    <th className="py-2 px-2.5 w-6">
+                    <th className="py-2.5 px-2.5 w-8">
                       <span className="sr-only">Select</span>
                     </th>
-                    <th className="py-2 px-2.5">University</th>
-                    <th className="py-2 px-2">City</th>
-                    <th className="py-2 px-2">Course</th>
-                    <th className="py-2 px-2">Tuition Fee (per year)</th>
-                    <th className="py-2 px-2">Application Fee</th>
-                    <th className="py-2 px-2">Deadline</th>
-                    <th className="py-2 px-2">Eligibility</th>
-                    <th className="py-2 px-2">Status</th>
-                    <th className="py-2 px-2 text-right">Actions</th>
+                    <th className="py-2.5 px-2.5 min-w-[200px]">University</th>
+                    <th className="py-2.5 px-2 min-w-[100px]">City</th>
+                    <th className="py-2.5 px-2 min-w-[180px]">Course</th>
+                    <th className="py-2.5 px-2 min-w-[140px] whitespace-nowrap">Tuition Fee (per year)</th>
+                    <th className="py-2.5 px-2 min-w-[110px] whitespace-nowrap">Application Fee</th>
+                    <th className="py-2.5 px-2 min-w-[110px] whitespace-nowrap">Deadline</th>
+                    <th className="py-2.5 px-2 min-w-[120px]">Eligibility</th>
+                    <th className="py-2.5 px-2 min-w-[100px] text-center">Status</th>
+                    <th className="py-2.5 px-2 text-right min-w-[100px]">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#f1f5f9]">
@@ -1871,6 +1923,25 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
         </div>
       )}
         </div>
+      )}
+
+      {/* Action Confirmation Floating Card */}
+      {confirmModalData && (
+        <ActionConfirmModal
+          isOpen={confirmModalData.isOpen}
+          onClose={() => setConfirmModalData(null)}
+          onConfirm={confirmModalData.onConfirm}
+          title={confirmModalData.title}
+          studentName={confirmModalData.studentName}
+          studentId={confirmModalData.studentId}
+          studentAvatar={confirmModalData.studentAvatar}
+          country={confirmModalData.country}
+          currentStageName={confirmModalData.currentStageName}
+          targetStageName={confirmModalData.targetStageName}
+          description={confirmModalData.description}
+          confirmLabel={confirmModalData.confirmLabel}
+          variant={confirmModalData.variant}
+        />
       )}
     </div>
   );

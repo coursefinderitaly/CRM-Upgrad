@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   FileText,
   Phone,
@@ -36,10 +36,12 @@ import {
   getPipelineStageForStudent,
   getNextStageForStudent,
 } from '../context/WorkflowContext';
+import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 export type { StudentRecord };
 export { INITIAL_STUDENTS };
 
 interface StudentsViewProps {
+  currentStageFilter?: string;
   onScheduleFollowUp?: (lead: Lead) => void;
   onOpenPhone?: (lead: Lead) => void;
   onOpenWhatsApp?: (lead: Lead) => void;
@@ -48,8 +50,8 @@ interface StudentsViewProps {
   onEditLead?: (lead: Lead) => void;
 }
 
-
 export const StudentsView: React.FC<StudentsViewProps> = ({
+  currentStageFilter,
   onScheduleFollowUp,
   onOpenPhone,
   onOpenWhatsApp,
@@ -129,22 +131,110 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
     return () => window.removeEventListener('hashchange', handleHash);
   }, [workflowStudents]);
 
+  // Dynamic header based on active pipeline section
+  const stageHeaderConfig: Record<string, { title: string; subtitle: string }> = {
+    students: {
+      title: 'Enrolled Students Directory',
+      subtitle: 'Complete lifecycle tracking and detailed profiles of all enrolled students',
+    },
+    'student-approval': {
+      title: 'Student Approval & Program Sign-off',
+      subtitle: 'Review student program choices, signed undertakings, and counselor approvals',
+    },
+    scholarship: {
+      title: 'Scholarship Applications & Grants',
+      subtitle: 'Italian regional scholarships (DSU, EDISU, ALISEO, LAZIODISCO) and merit award filings',
+    },
+    'pre-enrolment': {
+      title: 'Pre-Enrollment & Universitaly Verification',
+      subtitle: 'Official Universitaly summary dispatch, embassy pre-enrolment receipts, and consular validation',
+    },
+    'dov-cimea': {
+      title: 'DOV and CIMEA Verification',
+      subtitle: 'Declaration of Value (DOV) appointments, apostilles, and CIMEA Statement of Comparability',
+    },
+    'visa-process': {
+      title: 'Visa Applications & Embassy Appointments',
+      subtitle: 'VFS Global slot bookings, financial proof documentation, and Italian national visa stamps',
+    },
+    visa: {
+      title: 'Visa Applications & Embassy Appointments',
+      subtitle: 'VFS Global slot bookings, financial proof documentation, and Italian national visa stamps',
+    },
+    'pre-departure': {
+      title: 'Pre-Departure Briefing & Arrival Assistance',
+      subtitle: 'Student housing, flight bookings, Italian tax code (Codice Fiscale), and Permesso di Soggiorno',
+    },
+  };
+
+  useEffect(() => {
+    if (currentStageFilter === 'visa-process' || currentStageFilter === 'visa') {
+      setTabFilter('Visa');
+    } else if (currentStageFilter === 'pre-departure') {
+      setTabFilter('Ready');
+    }
+  }, [currentStageFilter]);
+
   // Filter students for the directory list
-  const filteredStudents = workflowStudents.filter((st) => {
-    const matchesSearch =
-      st.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      st.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      st.phone.includes(searchQuery) ||
-      st.preferredCourse.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      st.targetUniversity.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredStudents = useMemo(() => {
+    const list = workflowStudents.filter((st) => {
+      const matchesSearch =
+        st.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        st.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        st.phone.includes(searchQuery) ||
+        st.preferredCourse.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        st.targetUniversity.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const matchesCountry = countryFilter === 'All' || st.country === countryFilter;
-    const matchesStatus = statusFilter === 'All' || st.overallStatus === statusFilter;
+      const matchesCountry = countryFilter === 'All' || st.country === countryFilter;
+      const matchesStatus = statusFilter === 'All' || st.overallStatus === statusFilter;
 
-    const matchesTab = tabFilter === 'All' || TAB_FILTERS[tabFilter](st);
+      // Filter by pipeline stage if navigated to a specific section
+      if (currentStageFilter && currentStageFilter !== 'students') {
+        if (currentStageFilter === 'student-approval') {
+          if (st.stageNumber !== 4 && !st.currentStage.toLowerCase().includes('approval') && st.stageNumber !== 3) {
+            return false;
+          }
+        } else if (currentStageFilter === 'scholarship') {
+          if (st.stageNumber !== 8 && (!st.scholarships || st.scholarships.length === 0)) {
+            return false;
+          }
+        } else if (currentStageFilter === 'pre-enrolment') {
+          if (st.stageNumber !== 9 && (!st.preEnrolment || st.preEnrolment.length === 0)) {
+            return false;
+          }
+        } else if (currentStageFilter === 'dov-cimea') {
+          if (st.stageNumber !== 10 && !st.dov?.status) {
+            return false;
+          }
+        } else if (currentStageFilter === 'visa-process' || currentStageFilter === 'visa') {
+          if (st.stageNumber < 10 && !st.visa?.status && !st.visa?.appointmentDate) {
+            return false;
+          }
+        } else if (currentStageFilter === 'pre-departure') {
+          if (st.stageNumber < 12) {
+            return false;
+          }
+        }
+      }
 
-    return matchesSearch && matchesCountry && matchesStatus && matchesTab;
-  });
+      const matchesTab = tabFilter === 'All' || TAB_FILTERS[tabFilter](st);
+
+      return matchesSearch && matchesCountry && matchesStatus && matchesTab;
+    });
+
+    // Fallback: If zero matches on specific stage filter, show active students matching search so screen is never blank
+    if (list.length === 0 && currentStageFilter && currentStageFilter !== 'students') {
+      return workflowStudents.filter((st) => {
+        const matchesSearch =
+          st.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          st.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          st.phone.includes(searchQuery);
+        return matchesSearch;
+      });
+    }
+
+    return list;
+  }, [workflowStudents, searchQuery, countryFilter, statusFilter, tabFilter, currentStageFilter]);
 
   // Convert student record to Lead type for reusable modals
   const studentAsLead = (st: StudentRecord): Lead => ({
@@ -179,13 +269,45 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   const selectedPipelineStage = selectedStudent ? getPipelineStageForStudent(selectedStudent) : undefined;
   const selectedNextStage = selectedStudent ? getNextStageForStudent(selectedStudent) : undefined;
 
+  // Floating Confirmation Card State
+  const [confirmModalData, setConfirmModalData] = useState<{
+    isOpen: boolean;
+    title: string;
+    studentName: string;
+    studentId: string;
+    studentAvatar?: string;
+    country?: string;
+    currentStageName: string;
+    targetStageName: string;
+    description: string;
+    confirmLabel: string;
+    onConfirm: () => void;
+  } | null>(null);
+
   const handleAdvanceStage = () => {
-    if (!selectedStudent) return;
-    const next = advanceStudentStage(selectedStudent.id);
-    if (next) {
-      setToastMessage(`${selectedStudent.name} moved to ${next.label}`);
-      setTimeout(() => setToastMessage(null), 3000);
-    }
+    if (!selectedStudent || !selectedNextStage) return;
+    setConfirmModalData({
+      isOpen: true,
+      title: `Forward to ${selectedNextStage.label}?`,
+      studentName: selectedStudent.name,
+      studentId: selectedStudent.studentId,
+      studentAvatar: selectedStudent.avatar,
+      country: selectedStudent.country,
+      currentStageName: selectedPipelineStage?.label || 'Enrolled Students',
+      targetStageName: selectedNextStage.label,
+      description: `Are you sure you want to forward ${selectedStudent.name} to "${selectedNextStage.label}"? This will advance the student profile to the next team in the pipeline.`,
+      confirmLabel: `Yes, Forward to ${selectedNextStage.label}`,
+      onConfirm: () => {
+        const next = advanceStudentStage(selectedStudent.id);
+        if (next) {
+          setToastMessage(`${selectedStudent.name} moved to ${next.label}`);
+          setTimeout(() => setToastMessage(null), 3000);
+          if (onNavigate) {
+            onNavigate(`${next.route}?id=${selectedStudent.studentId}`);
+          }
+        }
+      },
+    });
   };
 
   const tabs = [
@@ -237,6 +359,24 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
         </div>
       )}
 
+      {/* Action Confirmation Floating Card */}
+      {confirmModalData && (
+        <ActionConfirmModal
+          isOpen={confirmModalData.isOpen}
+          onClose={() => setConfirmModalData(null)}
+          onConfirm={confirmModalData.onConfirm}
+          title={confirmModalData.title}
+          studentName={confirmModalData.studentName}
+          studentId={confirmModalData.studentId}
+          studentAvatar={confirmModalData.studentAvatar}
+          country={confirmModalData.country}
+          currentStageName={confirmModalData.currentStageName}
+          targetStageName={confirmModalData.targetStageName}
+          description={confirmModalData.description}
+          confirmLabel={confirmModalData.confirmLabel}
+        />
+      )}
+
       {/* ======================================================== */}
       {/* MODE 1: STUDENTS DIRECTORY (LIST VIEW)                  */}
       {/* ======================================================== */}
@@ -260,17 +400,21 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
               </div>
               <div>
                 <h1 className="text-[18px] font-bold text-[#101d37] leading-tight">
-                  Students Directory
+                  {stageHeaderConfig[currentStageFilter || 'students']?.title || 'Enrolled Students Directory'}
                 </h1>
                 <p className="text-[11.5px] text-[#64748b] leading-tight mt-0.5">
-                  Manage enrolled students, track university applications, visa stages, and student files
+                  {stageHeaderConfig[currentStageFilter || 'students']?.subtitle ||
+                    'Manage enrolled students, track university applications, visa stages, and student files'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2">
               <span className="text-[11.5px] text-[#64748b] hidden sm:inline">
-                Home &gt; <span className="font-semibold text-[#101d37]">Students Directory</span>
+                Home &gt;{' '}
+                <span className="font-semibold text-[#101d37]">
+                  {stageHeaderConfig[currentStageFilter || 'students']?.title || 'Enrolled Students Directory'}
+                </span>
               </span>
             </div>
           </div>

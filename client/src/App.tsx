@@ -6,7 +6,15 @@ import { LeadsView } from './views/LeadsView';
 import { StudentsView } from './views/StudentsView';
 import { DocumentationView } from './views/DocumentationView';
 import { UniversityShortlistingView } from './views/UniversityShortlistingView';
+import { StudentApprovalView } from './views/StudentApprovalView';
 import { ApplicationsView } from './views/ApplicationsView';
+import { OfferLettersView } from './views/OfferLettersView';
+import { FinalUniversityView } from './views/FinalUniversityView';
+import { ScholarshipView } from './views/ScholarshipView';
+import { PreEnrolmentView } from './views/PreEnrolmentView';
+import { DovCimeaView } from './views/DovCimeaView';
+import { VisaProcessView } from './views/VisaProcessView';
+import { PreDepartureView } from './views/PreDepartureView';
 import { CounsellingView } from './views/CounsellingView';
 import { EnrolmentView } from './views/EnrolmentView';
 import { FollowUpsView } from './views/FollowUpsView';
@@ -14,6 +22,7 @@ import { TasksView } from './views/TasksView';
 import { CommunicationView } from './views/CommunicationView';
 import { ReportsView } from './views/ReportsView';
 import { SettingsView } from './views/SettingsView';
+import { ResourcesView } from './views/ResourcesView';
 import { CalendarView } from './views/CalendarView';
 
 import { AddLeadModal } from './components/modals/AddLeadModal';
@@ -243,7 +252,7 @@ export function App() {
         break;
       case 'document-templates':
       case 'checklist-library':
-        setCurrentRoute('documentation');
+        setCurrentRoute('resources');
         break;
       case 'help-support':
         alert('Support Desk: support@studyabroadcrm.com | Toll-Free: 1800-123-7890');
@@ -435,20 +444,75 @@ export function App() {
             />
           )}
 
-          {(currentRoute === 'students' ||
-            currentRoute === 'student-approval' ||
-            currentRoute === 'scholarship' ||
-            currentRoute === 'pre-enrolment' ||
-            currentRoute === 'dov-cimea' ||
-            currentRoute === 'visa-process' ||
-            currentRoute === 'pre-departure') && (
+          {currentRoute === 'students' && (
             <StudentsView
+              currentStageFilter={currentRoute}
               onScheduleFollowUp={openScheduleFollowUp}
               onOpenPhone={openPhone}
               onOpenWhatsApp={openWhatsApp}
               onOpenEmail={openEmail}
               onNavigate={handleNavigate}
               onEditLead={openEditLead}
+            />
+          )}
+
+          {currentRoute === 'scholarship' && (
+            <ScholarshipView
+              students={getSectionStudents('scholarship')}
+              onAdvanceStage={advanceStudentStage}
+              onNavigate={handleNavigate}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onScheduleFollowUp={openScheduleFollowUp}
+            />
+          )}
+
+          {currentRoute === 'pre-enrolment' && (
+            <PreEnrolmentView
+              students={getSectionStudents('pre-enrolment')}
+              onAdvanceStage={advanceStudentStage}
+              onNavigate={handleNavigate}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onScheduleFollowUp={openScheduleFollowUp}
+            />
+          )}
+
+          {currentRoute === 'dov-cimea' && (
+            <DovCimeaView
+              students={getSectionStudents('dov-cimea')}
+              onAdvanceStage={advanceStudentStage}
+              onNavigate={handleNavigate}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onScheduleFollowUp={openScheduleFollowUp}
+            />
+          )}
+
+          {(currentRoute === 'visa-process' || currentRoute === 'visa') && (
+            <VisaProcessView
+              students={getSectionStudents('visa-process')}
+              onAdvanceStage={advanceStudentStage}
+              onNavigate={handleNavigate}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onScheduleFollowUp={openScheduleFollowUp}
+            />
+          )}
+
+          {currentRoute === 'pre-departure' && (
+            <PreDepartureView
+              students={getSectionStudents('pre-departure')}
+              onAdvanceStage={advanceStudentStage}
+              onNavigate={handleNavigate}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onScheduleFollowUp={openScheduleFollowUp}
             />
           )}
 
@@ -461,20 +525,56 @@ export function App() {
             />
           )}
 
-          {(currentRoute === 'university-shortlisting' || currentRoute === 'final-university') && (
+          {currentRoute === 'university-shortlisting' && (
             <UniversityShortlistingView
               students={getSectionStudents('shortlisting')}
               onAdvanceStage={advanceStudentStage}
-              onForwardToApplications={() => handleNavigate('applications')}
+              onForwardToApplications={() => handleNavigate('student-approval')}
               onNavigate={handleNavigate}
             />
           )}
 
-          {(currentRoute === 'applications' || currentRoute === 'offer-letters') && (
+          {currentRoute === 'final-university' && (
+            <FinalUniversityView
+              students={getSectionStudents('final-university')}
+              onAdvanceStage={advanceStudentStage}
+              onNavigate={handleNavigate}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onScheduleFollowUp={openScheduleFollowUp}
+            />
+          )}
+
+          {currentRoute === 'student-approval' && (
+            <StudentApprovalView
+              students={getSectionStudents('student-approval')}
+              onAdvanceStage={advanceStudentStage}
+              onNavigate={handleNavigate}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onScheduleFollowUp={openScheduleFollowUp}
+            />
+          )}
+
+          {currentRoute === 'applications' && (
             <ApplicationsView
               students={getSectionStudents('applications')}
               onAdvanceStage={advanceStudentStage}
               onNavigate={handleNavigate}
+            />
+          )}
+
+          {currentRoute === 'offer-letters' && (
+            <OfferLettersView
+              students={getSectionStudents('offer-letters')}
+              onAdvanceStage={advanceStudentStage}
+              onNavigate={handleNavigate}
+              onOpenPhone={openPhone}
+              onOpenWhatsApp={openWhatsApp}
+              onOpenEmail={openEmail}
+              onScheduleFollowUp={openScheduleFollowUp}
             />
           )}
 
@@ -546,6 +646,8 @@ export function App() {
           {(currentRoute === 'reports' || currentRoute === 'hr') && (
             <ReportsView analytics={analytics} leads={leads} />
           )}
+
+          {currentRoute === 'resources' && <ResourcesView onNavigate={handleNavigate} />}
 
           {currentRoute === 'settings' && <SettingsView />}
         </main>

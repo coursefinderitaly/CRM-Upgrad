@@ -1628,7 +1628,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     "timeline": [
       {
         "time": "01 Oct 2025 11:45 AM",
-        "text": "Etudes en France dossier submitted",
+        "text": "Etudes en France file submitted",
         "team": "Application Team",
         "dotColor": "bg-[#087cf5]"
       }
@@ -1805,7 +1805,7 @@ export const INITIAL_STUDENTS: StudentRecord[] = [
     ],
     "documents": [
       {
-        "name": "Passport & DoV Dossier",
+        "name": "Passport & DoV File",
         "status": "Verified",
         "date": "10 Sep 2025"
       }
