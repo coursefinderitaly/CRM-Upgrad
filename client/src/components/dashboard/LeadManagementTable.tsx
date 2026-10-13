@@ -165,17 +165,17 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
 
   return (
     <div className="bg-white rounded-[8px] border border-[#e5edf5] shadow-crm-card mb-3.5">
-      {/* Top Header / Tabs Row */}
-      <div className="px-3.5 py-2.5 border-b border-[#e5edf5] flex flex-wrap items-center justify-between gap-2">
+      {/* Top Header / Tabs & Controls Row */}
+      <div className="px-3 py-2 border-b border-[#e5edf5] flex items-center gap-2 overflow-x-auto scrollbar-none">
         {/* Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           {tabs.map((t) => {
             const isActive = activeTab === t.id;
             return (
               <button
                 key={t.id}
                 onClick={() => onTabChange(t.id)}
-                className={`flex items-center gap-1.5 px-3 py-1 rounded-[6px] text-[12px] font-medium transition-all ${
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[12px] font-medium transition-all whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'bg-[#087cf5] text-white font-semibold shadow-xs'
                     : 'bg-[#f4f8fc] text-[#52627a] hover:bg-[#eaf1f8] hover:text-[#101d37]'
@@ -196,11 +196,14 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
           })}
         </div>
 
-        {/* View Controls & Filter */}
+        {/* Divider right after 'Lost' */}
+        <div className="h-4 w-[1px] bg-slate-200 mx-0.5 shrink-0" />
+
+        {/* View Controls & Filter - shifted to upper line directly after 'Lost' */}
         <div className="flex items-center gap-1.5 shrink-0">
           <button
             onClick={() => onViewModeChange('table')}
-            className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-colors ${
+            className={`px-2.5 py-1 rounded-[6px] text-[12px] font-medium transition-colors whitespace-nowrap shrink-0 ${
               viewMode === 'table'
                 ? 'bg-[#087cf5] text-white font-semibold shadow-xs'
                 : 'bg-white text-[#52627a] border border-[#e2e8f0] hover:bg-slate-50'
@@ -210,7 +213,7 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
           </button>
           <button
             onClick={() => onViewModeChange('kanban')}
-            className={`px-3 py-1 rounded-[6px] text-[12px] font-medium transition-colors ${
+            className={`px-2.5 py-1 rounded-[6px] text-[12px] font-medium transition-colors whitespace-nowrap shrink-0 ${
               viewMode === 'kanban'
                 ? 'bg-[#087cf5] text-white font-semibold shadow-xs'
                 : 'bg-white text-[#52627a] border border-[#e2e8f0] hover:bg-slate-50'
@@ -222,7 +225,7 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
           <div className="relative">
             <button
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[12px] font-medium bg-white text-[#52627a] border border-[#e2e8f0] hover:bg-slate-50 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[12px] font-medium bg-white text-[#52627a] border border-[#e2e8f0] hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0"
             >
               <Filter className="w-3.5 h-3.5 text-[#52627a]" />
               <span>Filter</span>
@@ -230,7 +233,7 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
 
             {/* Quick Filter Menu */}
             {showFilterDropdown && (
-              <div className="absolute right-0 top-full mt-1.5 w-52 bg-white border border-[#e2e8f0] rounded-lg shadow-xl p-2.5 z-40 space-y-2">
+              <div className="absolute left-0 sm:right-0 sm:left-auto top-full mt-1.5 w-52 bg-white border border-[#e2e8f0] rounded-lg shadow-xl p-2.5 z-50 space-y-2">
                 <div className="text-[11px] font-bold text-[#101d37]">Country</div>
                 <select
                   value={countryFilter}
