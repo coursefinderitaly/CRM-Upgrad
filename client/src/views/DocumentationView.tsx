@@ -58,6 +58,7 @@ export interface DocumentItem {
 interface DocumentationViewProps {
   students?: StudentRecord[];
   onAdvanceStage?: (studentId: string) => any;
+  onForwardToShortlisting?: () => void;
   onForwardToApplications?: () => void;
   onNavigate?: (route: string) => void;
 }
@@ -181,6 +182,7 @@ const generateDefaultChecklistForStudent = (student: StudentRecord): DocumentIte
 export const DocumentationView: React.FC<DocumentationViewProps> = ({
   students,
   onAdvanceStage,
+  onForwardToShortlisting,
   onForwardToApplications,
   onNavigate,
 }) => {
@@ -488,6 +490,36 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
     ]);
     setNewNoteInput('');
     showToast('Internal note saved to student file');
+  };
+
+  const handleForwardToShortlisting = () => {
+    if (!selectedStudent) return;
+    setConfirmModalData({
+      isOpen: true,
+      title: 'Forward to University Shortlisting?',
+      studentName: selectedStudent.name,
+      studentId: selectedStudent.studentId,
+      studentAvatar: selectedStudent.avatar,
+      country: selectedStudent.country,
+      currentStageName: 'Documentation Completed (Stage 2)',
+      targetStageName: 'University Shortlisting (Stage 3)',
+      description: `Are you sure you want to approve documents and forward ${selectedStudent.name} to University Shortlisting? The shortlisting team will prepare customized university recommendations.`,
+      confirmLabel: 'Yes, Forward to University Shortlisting',
+      variant: 'primary',
+      onConfirm: () => {
+        if (onAdvanceStage) {
+          onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
+        }
+        showToast(`Documents Approved! ${selectedStudent.name} moved to University Shortlisting.`);
+        if (onForwardToShortlisting) {
+          onForwardToShortlisting();
+        } else if (onForwardToApplications) {
+          onForwardToApplications();
+        } else if (onNavigate) {
+          onNavigate(`university-shortlisting?id=${selectedStudent.studentId}`);
+        }
+      },
+    });
   };
 
   // Compute live student document summary (directory reactive)
@@ -1371,31 +1403,25 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
               </div>
             </div>
 
-            {/* Right Section: Dossier Actions & Notes (4 cols) */}
+            {/* Right Section: Student File Actions & Notes (4 cols) */}
             <div className="lg:col-span-4 space-y-3">
-              {/* Card 1: Forward to Application Team CTA */}
+              {/* Card 1: Forward to University Shortlisting CTA */}
               <div className="bg-gradient-to-br from-[#7c3aed] to-[#5b21b6] text-white rounded-[9px] p-4 shadow-sm space-y-2.5">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] uppercase font-bold tracking-wider text-purple-200">Documents Clearance</span>
                   <Sparkles className="w-4 h-4 text-amber-300" />
                 </div>
                 <div>
-                  <h4 className="text-[15px] font-bold leading-tight">Ready for University Applications</h4>
+                  <h4 className="text-[15px] font-bold leading-tight">Ready for University Shortlisting</h4>
                   <p className="text-[11px] text-purple-100 mt-1 leading-snug">
-                    Once all mandatory documents are stamped, forward this student file to the university application team.
+                    Once all mandatory documents are verified, forward this student file to the university shortlisting team.
                   </p>
                 </div>
                 <button
-                  onClick={() => {
-                    if (onForwardToApplications) {
-                      onForwardToApplications();
-                    } else if (onNavigate) {
-                      onNavigate('applications');
-                    }
-                  }}
+                  onClick={handleForwardToShortlisting}
                   className="w-full py-2 px-3 rounded-[6px] bg-white hover:bg-slate-50 text-[#7c3aed] font-bold text-[12px] flex items-center justify-center gap-1.5 transition-colors shadow-xs"
                 >
-                  <span>Forward to Application Team</span>
+                  <span>Forward to University Shortlisting</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
@@ -1499,32 +1525,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                   </button>
 
                   <button
-                    onClick={() => {
-                      setConfirmModalData({
-                        isOpen: true,
-                        title: 'Forward to University Shortlisting?',
-                        studentName: selectedStudent.name,
-                        studentId: selectedStudent.studentId,
-                        studentAvatar: selectedStudent.avatar,
-                        country: selectedStudent.country,
-                        currentStageName: 'Documentation Completed (Stage 2)',
-                        targetStageName: 'University Shortlisting (Stage 3)',
-                        description: `Are you sure you want to approve documents and forward ${selectedStudent.name} to University Shortlisting? The shortlisting team will prepare customized university recommendations.`,
-                        confirmLabel: 'Yes, Forward to University Shortlisting',
-                        variant: 'primary',
-                        onConfirm: () => {
-                          if (onAdvanceStage) {
-                            onAdvanceStage(selectedStudent.studentId || selectedStudent.id);
-                          }
-                          showToast(`Documents Approved! ${selectedStudent.name} moved to University Shortlisting.`);
-                          if (onForwardToApplications) {
-                            onForwardToApplications();
-                          } else if (onNavigate) {
-                            onNavigate(`university-shortlisting?id=${selectedStudent.studentId}`);
-                          }
-                        },
-                      });
-                    }}
+                    onClick={handleForwardToShortlisting}
                     className="col-span-2 py-2 px-2 rounded-[6px] bg-[#087cf5] hover:bg-[#006ee6] text-white font-semibold text-xs flex items-center justify-center gap-1.5 shadow-xs transition-colors"
                   >
                     <ArrowRight className="w-3.5 h-3.5" />
