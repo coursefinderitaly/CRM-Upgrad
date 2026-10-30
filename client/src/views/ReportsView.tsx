@@ -627,7 +627,7 @@ export const ReportsView: React.FC<ReportsViewProps> = ({ analytics, leads = [] 
                         src={st.avatar}
                         alt={st.name}
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/avatars/row_rahul.png';
+                          (e.target as HTMLElement).style.visibility = 'hidden';
                         }}
                         className="w-7 h-7 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
                       />

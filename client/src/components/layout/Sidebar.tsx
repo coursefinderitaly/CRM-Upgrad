@@ -3,13 +3,11 @@ import {
   GraduationCap,
   LayoutDashboard,
   Users,
-  FileText,
   CheckSquare,
   MessageSquare,
   BarChart3,
   Settings,
-  Headphones,
-  CreditCard,
+  History,
   Send,
   Calendar,
   X,
@@ -25,8 +23,15 @@ import {
   Plane,
   Compass,
   Library,
+  Phone,
+  PauseCircle,
+  UserX,
+  LogOut,
+  ShieldCheck,
+  UserPlus,
 } from 'lucide-react';
 import { useLocalStorage } from '../../hooks/useLocalStorage';
+import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
   currentRoute: string;
@@ -42,18 +47,23 @@ interface SidebarProps {
 export const Sidebar: React.FC<SidebarProps> = ({
   currentRoute,
   onNavigate,
-  unreadLeadsCount = 12,
   isOpen,
   onClose,
   isCollapsed,
   onToggleCollapse,
 }) => {
-  // Organisation branding comes from Settings → Organisation (falls back to a neutral product name)
+  const { user, activePortal, logout } = useAuth();
   const [org] = useLocalStorage<{ orgName: string }>('crm-settings-org', { orgName: '' });
 
-  // Primary study abroad operational lifecycle stages as configured
+  // Complete lifecycle navigation items (with Leads Management included!)
   const mainNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'leads', label: 'My Students', icon: UserPlus },
+    { id: 'my-students-contacted', label: 'Contacted', icon: Phone },
+    { id: 'my-students-counselling', label: 'Counselling', icon: MessageSquare },
+    { id: 'my-students-interested', label: 'Interested', icon: UserCheck },
+    { id: 'my-students-on-hold', label: 'On Hold', icon: PauseCircle },
+    { id: 'my-students-drop', label: 'Drop', icon: UserX },
     { id: 'students', label: 'Enrolled Students', icon: Users },
     { id: 'university-shortlisting', label: 'University Shortlisting', icon: GraduationCap },
     { id: 'student-approval', label: 'Student Approval', icon: UserCheck },
@@ -70,20 +80,83 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   // Secondary management sections below divider
   const secondaryNavItems = [
+    { id: 'history', label: 'History & Audit Trail', icon: History },
     { id: 'tasks', label: 'Tasks & Follow-ups', icon: CheckSquare },
     { id: 'calendar', label: 'Calendar & Schedule', icon: Calendar },
     { id: 'communication', label: 'Communications', icon: MessageSquare },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3 },
     { id: 'resources', label: 'Resources', icon: Library },
-    { id: 'settings', label: 'Settings', icon: Settings },
+    { id: 'settings', label: 'Settings & Team', icon: Settings },
   ];
+
+  // Counsellor portal only handles early-stage work. The downstream pipeline
+  // stages (university shortlisting → pre-departure) live in the Docs /
+  // Scholarship / Visa portals, so they are hidden here.
+  const COUNSELLOR_MAIN_IDS = new Set([
+    'dashboard',
+    'leads',
+    'my-students-contacted',
+    'my-students-counselling',
+    'my-students-interested',
+    'my-students-on-hold',
+    'my-students-drop',
+    'students',
+  ]);
+
+  // Docs (Document & Application) portal only handles the dossier →
+  // application → offer → final-university pipeline. Early counselling
+  // stages and downstream visa/scholarship stages live in other portals.
+  const DOCS_MAIN_IDS = new Set([
+    'dashboard',
+    'leads',
+    'documentation',
+    'applications',
+    'offer-letters',
+    'final-university',
+  ]);
+
+  const visibleMainNavItems =
+    activePortal.role === 'counsellor'
+      ? mainNavItems.filter((item) => COUNSELLOR_MAIN_IDS.has(item.id))
+      : activePortal.role === 'docs'
+        ? mainNavItems.filter((item) => DOCS_MAIN_IDS.has(item.id))
+        : mainNavItems;
+
+  // Contacted / Counselling / Interested / On Hold / Drop are sub-stages of the My Students
+  // funnel. Render them as an indented group with a connector line so the
+  // relationship is visible instead of looking like three separate modules.
+  const STUDENT_STATUS_GROUP_IDS = new Set([
+    'my-students-contacted',
+    'my-students-counselling',
+    'my-students-interested',
+    'my-students-on-hold',
+    'my-students-drop',
+  ]);
+
+  const firstGroupedIndex = visibleMainNavItems.findIndex((item) => STUDENT_STATUS_GROUP_IDS.has(item.id));
+  const lastGroupedIndex = visibleMainNavItems.reduce(
+    (last, item, index) => (STUDENT_STATUS_GROUP_IDS.has(item.id) ? index : last),
+    -1
+  );
+
+  const navItemsBeforeGroup =
+    firstGroupedIndex >= 0 ? visibleMainNavItems.slice(0, firstGroupedIndex) : visibleMainNavItems;
+  const groupedStudentStatusItems =
+    firstGroupedIndex >= 0
+      ? visibleMainNavItems.slice(firstGroupedIndex, lastGroupedIndex + 1).filter((item) => STUDENT_STATUS_GROUP_IDS.has(item.id))
+      : [];
+  const navItemsAfterGroup =
+    lastGroupedIndex >= 0 ? visibleMainNavItems.slice(lastGroupedIndex + 1) : [];
 
   const renderNavItem = (item: {
     id: string;
     label: string;
     icon: React.ElementType;
   }) => {
-    const isActive = currentRoute === item.id;
+    const isActive =
+      currentRoute === item.id ||
+      (activePortal.role === 'docs' && item.id === 'leads' && currentRoute === 'students') ||
+      (item.id === 'dashboard' && (!currentRoute || currentRoute === ''));
     const Icon = item.icon;
     return (
       <button
@@ -122,7 +195,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           isOpen ? 'translate-x-0' : '-translate-x-full'
         } ${isCollapsed ? 'w-[240px] lg:w-[76px]' : 'w-[240px]'}`}
       >
-        {/* Branding (reads the organisation name configured in Settings) */}
+        {/* Branding */}
         <div
           className={`flex items-center gap-2 px-3.5 py-3.5 border-b border-[#0f294a]/60 ${
             isCollapsed ? 'lg:px-2.5 lg:justify-between lg:gap-1' : ''
@@ -145,7 +218,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             </div>
           </div>
 
-          {/* Desktop collapse / expand icon button */}
+          {/* Desktop collapse button */}
           <button
             onClick={onToggleCollapse}
             className="hidden lg:flex items-center justify-center w-5 h-5 rounded-md text-[#8ca0ba] hover:text-white hover:bg-[#0e2746] transition-colors shrink-0"
@@ -161,10 +234,50 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </button>
         </div>
 
+        {/* Active Portal Banner */}
+        <div
+          className={`px-3 py-2 bg-[#051426] border-b border-[#0f294a]/60 flex items-center justify-between ${
+            isCollapsed ? 'lg:justify-center lg:px-1.5' : ''
+          }`}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              className="w-2.5 h-2.5 rounded-full shrink-0 animate-pulse"
+              style={{ backgroundColor: activePortal.accentHex }}
+            />
+            <div className={`min-w-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
+              <span className="text-[11.5px] font-bold text-white block truncate leading-tight">
+                {activePortal.title}
+              </span>
+              <span className="text-[9.5px] text-slate-400 block truncate leading-tight">
+                {activePortal.badge}
+              </span>
+            </div>
+          </div>
+        </div>
+
         {/* Scrollable Navigation */}
         <div className="flex-1 overflow-y-auto px-2.5 py-3 space-y-3 scrollbar-thin scrollbar-thumb-slate-700">
           {/* Main Lifecycle Navigation */}
-          <nav className="space-y-0.5">{mainNavItems.map(renderNavItem)}</nav>
+          <nav className="space-y-0.5">
+            {navItemsBeforeGroup.map(renderNavItem)}
+
+            {groupedStudentStatusItems.length > 0 && (
+              <div className={`relative mt-0.5 mb-0.5 ${isCollapsed ? 'lg:mt-0 lg:mb-0' : ''}`}>
+                {/* Vertical connector showing these are grouped under My Students */}
+                <span
+                  className={`absolute left-[13px] top-1 bottom-1 w-[1.5px] rounded-full bg-[#3b6ea8] ${
+                    isCollapsed ? 'lg:hidden' : ''
+                  }`}
+                />
+                <div className={`${isCollapsed ? 'lg:pl-0' : 'pl-3.5'} space-y-0.5`}>
+                  {groupedStudentStatusItems.map(renderNavItem)}
+                </div>
+              </div>
+            )}
+
+            {navItemsAfterGroup.map(renderNavItem)}
+          </nav>
 
           {/* Divider */}
           <div className="pt-2 border-t border-[#0f294a]/60">
@@ -180,24 +293,45 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
         </div>
 
-        {/* Footer: collapse toggle (desktop) */}
-        <div className="hidden lg:block border-t border-[#0f294a]/60 p-2.5">
-          <button
-            onClick={onToggleCollapse}
-            title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className={`w-full flex items-center px-3 py-2 rounded-[6px] text-[11.5px] font-medium text-[#8ca0ba] hover:bg-[#0e2746] hover:text-white transition-colors ${
-              isCollapsed ? 'lg:justify-center lg:px-2' : ''
+        {/* Footer: Active User & Logout */}
+        <div className="border-t border-[#0f294a]/60 p-2.5 bg-[#051426]/60">
+          <div
+            className={`flex items-center justify-between gap-2 ${
+              isCollapsed ? 'lg:flex-col lg:items-center' : ''
             }`}
           >
-            {isCollapsed ? (
-              <ChevronRight className="w-4 h-4 shrink-0" />
-            ) : (
-              <>
-                <ChevronLeft className="w-4 h-4 shrink-0" />
-                <span className="ml-2.5">Collapse Panel</span>
-              </>
-            )}
-          </button>
+            <div className="flex items-center gap-2 min-w-0">
+              <div
+                className="w-7 h-7 rounded-full text-white flex items-center justify-center text-[10px] font-bold shrink-0"
+                style={{ backgroundColor: activePortal.accentHex }}
+              >
+                {user?.name
+                  ? user.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')
+                      .slice(0, 2)
+                      .toUpperCase()
+                  : 'U'}
+              </div>
+              <div className={`min-w-0 ${isCollapsed ? 'lg:hidden' : ''}`}>
+                <div className="text-[11.5px] font-semibold text-white truncate leading-tight">
+                  {user?.name || 'Portal User'}
+                </div>
+                <div className="text-[9.5px] text-slate-400 truncate leading-tight">
+                  {user?.email || 'user@crm.com'}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={logout}
+              title="Log Out of Portal"
+              className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 rounded-md transition-colors shrink-0"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </aside>
     </>

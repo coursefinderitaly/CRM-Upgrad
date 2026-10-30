@@ -1,6 +1,13 @@
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Lead } from '../types/crm';
-import { INITIAL_STUDENTS, StudentRecord } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
+import {
+  fetchCommonProfiles,
+  CommonStudentProfile,
+  createCommonProfile,
+  updateCommonProfileSection,
+  getAuditActor,
+} from '../services/api';
 
 /**
  * Workflow pipeline stages a profile travels through after lead conversion.
@@ -304,7 +311,7 @@ const buildStudentFromLead = (
   studentId: `${countryPrefix(lead.countryInterest)}-2027-${String(sequence).padStart(3, '0')}`,
   leadId: lead.id,
   name: lead.studentName,
-  avatar: lead.avatarUrl || '/avatars/row_rahul.png',
+  avatar: lead.avatarUrl || '',
   phone: lead.phone,
   email: lead.email,
   dob: lead.dob || '-',
@@ -343,7 +350,7 @@ const buildStudentFromLead = (
   },
   applications: [],
   offers: [],
-  documents: DEFAULT_DOCUMENTS.map((name) => ({ name, status: 'Pending', date: '-' })),
+  documents: [],
   scholarships: [],
   preEnrolment: [],
   dov: { processType: '-', status: 'Not Started', requiredBy: '-' },
@@ -366,31 +373,198 @@ interface WorkflowContextValue {
   getSectionStudents: (section: PipelineStageId) => StudentRecord[];
   getStudentById: (studentId: string) => StudentRecord | undefined;
   resetWorkflow: () => void;
+  refreshFromProfiles: () => Promise<void>;
 }
 
 const WorkflowContext = createContext<WorkflowContextValue | undefined>(undefined);
 
-const STORAGE_KEY = 'crm-workflow-v9';
+const STORAGE_KEY = 'crm-workflow-v11';
+
+const mapPriority = (val?: string): 'High' | 'Medium' | 'Low' => {
+  if (val === 'High' || val === 'Low') return val;
+  return 'Medium';
+};
+
+const mapCommonProfileToStudentRecord = (p: CommonStudentProfile): StudentRecord => ({
+  id: p.id || `student-${p.lead_id || p.student_id}`,
+  studentId: p.student_id || 'STU-2027-000',
+  leadId: p.lead_id,
+  name: p.name,
+  avatar: p.avatar || '',
+  phone: p.phone,
+  email: p.email,
+  dob: p.dob || '-',
+  address: p.address || '-',
+  nationality: p.nationality || 'Indian',
+  country: p.country || 'Italy',
+  countryCode: p.country_code || countryPrefix(p.country || 'Italy'),
+  targetUniversity: p.target_university || 'To be shortlisted',
+  preferredCourse: p.preferred_course || 'MSc Management',
+  alternativeCourses: (() => {
+    const raw = (p as any).alternative_courses;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string' && raw.trim()) {
+      return raw.split(/[,;\n]/).map((c) => c.trim()).filter(Boolean);
+    }
+    return [];
+  })(),
+  courseLevel: p.course_level || 'Master',
+  intake: p.intake || 'Sept 2026',
+  budget: p.budget || '',
+  counsellor: p.counsellor_name || 'Neha Sharma',
+  enrollmentDate: p.enrollment_date || today(),
+  nextFollowUp: p.next_follow_up || '-',
+  overallStatus: p.overall_status || 'New Lead',
+  priority: mapPriority(p.priority),
+  currentStage: p.current_stage || 'Student Profile Onboarded',
+  stageNumber: p.stage_number || 1,
+  folderName: p.folder_name,
+  dbFile: p.db_file,
+  academic: {
+    highestQualification: p.academic?.bachelor_degree || '-',
+    university: p.academic?.bachelor_university || '-',
+    passingYear: p.academic?.bachelor_passing_year || '-',
+    cgpa: p.academic?.bachelor_cgpa || '-',
+    englishTest: p.test_scores?.[0] ? `${p.test_scores[0].test_type} ${p.test_scores[0].overall_score}` : 'In Prep',
+    workExperience: p.academic?.work_experience || '-',
+    budget: p.budget || '-',
+  },
+  payment: {
+    servicePackage: p.approval?.service_package || 'Standard Counselling Package',
+    agreementStatus: p.approval?.agreement_status || (p.approval?.agreement_signed ? 'Signed' : 'Pending'),
+    totalFee: p.approval?.total_fee || '-',
+    amountPaid: p.approval?.amount_paid || '-',
+    balance: p.approval?.balance || '-',
+    schedule: (() => {
+      const raw = p.approval?.payment_schedule;
+      if (!raw) return [];
+      return String(raw).split(/\n|;/).map((s) => s.trim()).filter(Boolean);
+    })(),
+  },
+  applications: Array.isArray(p.applications)
+    ? p.applications.map((app: any, idx: number) => ({
+        id: typeof app.id === 'number' ? app.id : idx + 1,
+        university: app.university_name || app.university || 'University',
+        program: app.program_name || app.program || 'Degree',
+        intake: app.intake || p.intake || 'Sept 2026',
+        date: app.submission_date || app.date || '-',
+        status: app.status || 'Draft',
+        statusColor: app.statusColor || 'text-blue-600 bg-blue-50',
+      }))
+    : [],
+  offers: Array.isArray(p.offers)
+    ? p.offers.map((off: any) => ({
+        university: off.university_name || off.university || 'University',
+        date: off.received_date || off.date || '-',
+        type: off.offer_type || off.type || 'Conditional',
+        conditions: Array.isArray(off.conditions) ? off.conditions : off.conditions ? [String(off.conditions)] : [],
+        status: off.status || 'Received',
+        statusColor: off.statusColor || 'text-emerald-600 bg-emerald-50',
+      }))
+    : [],
+  documents: Array.isArray(p.documents) && p.documents.length > 0
+    ? p.documents.map((d: any) => ({
+        name: d.document_name || d.name || 'Document',
+        status: d.status || 'Pending',
+        date: d.created_at
+          ? new Date(d.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          : (d.date || '-'),
+      }))
+    : [],
+  scholarships: p.scholarship
+    ? [
+        {
+          name: p.scholarship.scholarship_name || 'Regional Scholarship',
+          deadline: (p.scholarship as any).application_deadline || '-',
+          status: p.scholarship.status || 'In Progress',
+          statusColor: 'text-amber-600 bg-amber-50',
+        },
+      ]
+    : [],
+  preEnrolment: p.pre_enrolment
+    ? [
+        {
+          step: p.pre_enrolment.universitaly_summary_code
+            ? `Universitaly Summary (${p.pre_enrolment.universitaly_summary_code})`
+            : 'Universitaly Verification',
+          status: p.pre_enrolment.status || 'Not Started',
+          date: (p.pre_enrolment as any).updated_at
+            ? new Date((p.pre_enrolment as any).updated_at).toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+              })
+            : '-',
+        },
+      ]
+    : [],
+  dov: {
+    processType: p.legalization?.process_type || '-',
+    status: p.legalization?.status || 'Not Started',
+    requiredBy: '-',
+  },
+  visa: {
+    appointmentDate: p.visa?.appointment_date || '-',
+    status: p.visa?.decision || 'Not Started',
+    visaType: p.visa?.visa_type || 'Student Visa Type D',
+    vfsReference: p.visa?.vfs_reference_no || '-',
+  },
+  timeline: Array.isArray(p.timeline) && p.timeline.length > 0
+    ? p.timeline.map((item: any) => ({
+        time: item.created_at || item.time || nowStamp(),
+        text: item.action ? `${item.action}: ${item.details || ''}` : item.text || 'Profile activity',
+        team: item.operator_name || item.team || 'Counsellor Desk',
+        dotColor: item.dot_color || item.dotColor || 'bg-[#087cf5]',
+      }))
+    : [
+        {
+          time: nowStamp(),
+          text: `Student profile folder loaded: ${p.folder_name || p.name}`,
+          team: 'Registration Desk',
+          dotColor: 'bg-[#087cf5]',
+        },
+      ],
+});
 
 const loadInitialStudents = (): StudentRecord[] => {
-  if (typeof window === 'undefined') return INITIAL_STUDENTS;
+  if (typeof window === 'undefined') return [];
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return INITIAL_STUDENTS;
+    if (!raw) return [];
     const stored = JSON.parse(raw) as StudentRecord[];
-    if (!Array.isArray(stored) || stored.length === 0) return INITIAL_STUDENTS;
-    const byId = new Map<string, StudentRecord>();
-    INITIAL_STUDENTS.forEach((s) => byId.set(s.id, s));
-    // Persisted records always win over the seed, so stage moves survive reloads
-    stored.forEach((s) => byId.set(s.id, s));
-    return Array.from(byId.values());
+    if (!Array.isArray(stored)) return [];
+    // Only return stored if they don't contain stale mock UUIDs
+    return stored.filter(
+      (s) =>
+        !s.id.startsWith('ac20235b-') &&
+        !s.id.startsWith('99dc6a9c-') &&
+        !s.id.startsWith('a31e8c8a-') &&
+        !s.id.startsWith('37f37dd3-')
+    );
   } catch {
-    return INITIAL_STUDENTS;
+    return [];
   }
 };
 
 export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [students, setStudents] = useState<StudentRecord[]>(loadInitialStudents);
+
+  // Sync directly with the physical student profile folders and their SQLite databases.
+  // This folder store is the single source of truth shared by every portal section.
+  const refreshFromProfiles = useCallback(async () => {
+    try {
+      const profiles = await fetchCommonProfiles();
+      if (profiles && Array.isArray(profiles)) {
+        setStudents(profiles.map(mapCommonProfileToStudentRecord));
+      }
+    } catch (err) {
+      console.warn('Could not sync profiles from student folders:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshFromProfiles();
+  }, [refreshFromProfiles]);
 
   useEffect(() => {
     try {
@@ -399,32 +573,6 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       // Storage unavailable — workflow keeps working in-memory for the session.
     }
   }, [students]);
-
-  const convertLeadToStudent = useCallback(
-    (lead: Lead, stageId: PipelineStageId = 'counselling'): StudentRecord => {
-      const stage = getStageById(stageId);
-      const existing = students.find(
-        (s) => s.leadId === lead.id || (lead.email && s.email.toLowerCase() === lead.email.toLowerCase())
-      );
-      if (existing) {
-        // Idempotent conversion: keep the record, but surface it at the requested stage if it is still parked earlier.
-        if (existing.stageNumber < stage.stageNumber) {
-          setStudents((prev) =>
-            prev.map((s) => (s.id === existing.id ? applyStage(s, stage, 'Re-routed from lead conversion') : s))
-          );
-          return applyStage(existing, stage, 'Re-routed from lead conversion');
-        }
-        return existing;
-      }
-
-      const sequence =
-        students.filter((s) => countryPrefix(s.country) === countryPrefix(lead.countryInterest)).length + 1;
-      const newStudent = buildStudentFromLead(lead, stage, sequence);
-      setStudents((prev) => [newStudent, ...prev]);
-      return newStudent;
-    },
-    [students]
-  );
 
   const advanceStudentStage = useCallback(
     (studentId: string, targetStageIdOrNumber?: PipelineStageId | number): PipelineStage | null => {
@@ -445,19 +593,104 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       if (!next) return null;
       setStudents((prev) => prev.map((s) => (s.id === student.id ? applyStage(s, next!) : s)));
+
+      // Persist stage update to the student's dedicated SQLite database
+      const actor = getAuditActor();
+      updateCommonProfileSection(
+        student.id,
+        'profile',
+        {
+          current_stage: next.label,
+          stage_number: next.stageNumber,
+          overall_status: next.status,
+        },
+        actor.name || 'Staff Operator',
+        actor.role || 'counsellor',
+        { email: actor.email || undefined, portal: actor.role || undefined }
+      ).catch((err) => console.error('Failed to persist stage update to SQLite:', err));
+
       return next;
     },
     [students]
   );
 
+  const convertLeadToStudent = useCallback(
+    (lead: Lead, stageId: PipelineStageId = 'counselling'): StudentRecord => {
+      const stage = getStageById(stageId);
+      const existing = students.find(
+        (s) => s.leadId === lead.id || s.studentId === lead.leadId || (lead.email && s.email.toLowerCase() === lead.email.toLowerCase())
+      );
+      if (existing) {
+        // Idempotent conversion: keep the record, but surface it at the requested stage if it is still parked earlier.
+        if (existing.stageNumber < stage.stageNumber) {
+          advanceStudentStage(existing.id, stage.id);
+          return applyStage(existing, stage, 'Re-routed from lead conversion');
+        }
+        return existing;
+      }
+
+      const sequence =
+        students.filter((s) => countryPrefix(s.country) === countryPrefix(lead.countryInterest)).length + 1;
+      const newStudent = buildStudentFromLead(lead, stage, sequence);
+      setStudents((prev) => [newStudent, ...prev]);
+
+      // Create on-disk physical student folder and SQLite database
+      createCommonProfile({
+        id: newStudent.id,
+        student_id: newStudent.studentId,
+        lead_id: lead.id,
+        name: newStudent.name,
+        avatar: newStudent.avatar,
+        phone: newStudent.phone,
+        email: newStudent.email,
+        country: newStudent.country,
+        country_code: newStudent.countryCode,
+        preferred_course: newStudent.preferredCourse,
+        course_level: newStudent.courseLevel,
+        current_stage: newStudent.currentStage,
+        stage_number: newStudent.stageNumber,
+        overall_status: newStudent.overallStatus,
+        priority: newStudent.priority,
+        counsellor_name: newStudent.counsellor,
+        enrollment_date: newStudent.enrollmentDate,
+        next_follow_up: newStudent.nextFollowUp,
+      }).then(() => {
+        refreshFromProfiles();
+      }).catch((err) => {
+        console.error('Failed to create student profile folder/db:', err);
+      });
+
+      return newStudent;
+    },
+    [students, advanceStudentStage, refreshFromProfiles]
+  );
+
   const moveStudentToStage = useCallback(
     (studentId: string, stageId: PipelineStageId) => {
       const stage = getStageById(stageId);
+      const student = students.find((s) => s.id === studentId || s.studentId === studentId);
+      if (!student) return;
+
       setStudents((prev) =>
-        prev.map((s) => (s.id === studentId || s.studentId === studentId ? applyStage(s, stage) : s))
+        prev.map((s) => (s.id === student.id ? applyStage(s, stage) : s))
       );
+
+      // Persist to SQLite
+      const actor = getAuditActor();
+      updateCommonProfileSection(
+        student.id,
+        'profile',
+        {
+          current_stage: stage.label,
+          stage_number: stage.stageNumber,
+          overall_status: stage.status,
+        },
+        actor.name || 'Staff Operator',
+        actor.role || 'counsellor',
+        { email: actor.email || undefined, portal: actor.role || undefined }
+      ).catch((err) => console.error('Failed to persist move stage to SQLite:', err));
     },
-    []
+    [students]
   );
 
   const getSectionStudents = useCallback(
@@ -476,8 +709,8 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } catch {
       // ignore
     }
-    setStudents(INITIAL_STUDENTS);
-  }, []);
+    refreshFromProfiles();
+  }, [refreshFromProfiles]);
 
   const value = useMemo<WorkflowContextValue>(
     () => ({
@@ -488,8 +721,9 @@ export const WorkflowProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       getSectionStudents,
       getStudentById,
       resetWorkflow,
+      refreshFromProfiles,
     }),
-    [students, convertLeadToStudent, advanceStudentStage, moveStudentToStage, getSectionStudents, getStudentById, resetWorkflow]
+    [students, convertLeadToStudent, advanceStudentStage, moveStudentToStage, getSectionStudents, getStudentById, resetWorkflow, refreshFromProfiles]
   );
 
   return <WorkflowContext.Provider value={value}>{children}</WorkflowContext.Provider>;

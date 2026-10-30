@@ -27,7 +27,7 @@ import {
   Globe,
   Upload,
 } from 'lucide-react';
-import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
 import { WorkflowStageBanner } from '../components/workflow/WorkflowStageBanner';
 import { getStageById } from '../context/WorkflowContext';
 import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
@@ -136,7 +136,7 @@ export const PreEnrolmentView: React.FC<PreEnrolmentViewProps> = ({
   onOpenWhatsApp,
   onOpenEmail,
 }) => {
-  const studentList = students && students.length > 0 ? students : INITIAL_STUDENTS;
+  const studentList = students || [];
 
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -378,13 +378,15 @@ export const PreEnrolmentView: React.FC<PreEnrolmentViewProps> = ({
                 ))}
               </div>
 
-              <button
-                onClick={() => handleOpenStudent(studentList[0])}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[12px] font-semibold transition-colors shadow-xs"
-              >
-                <Globe className="w-3.5 h-3.5" />
-                <span>Open Sample Pre-Enrollment Workspace</span>
-              </button>
+              {studentList[0] && (
+                <button
+                  onClick={() => handleOpenStudent(studentList[0])}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[12px] font-semibold transition-colors shadow-xs"
+                >
+                  <Globe className="w-3.5 h-3.5" />
+                  <span>Open Pre-Enrollment Workspace ({studentList[0].name})</span>
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-2 pt-1 border-t border-slate-100">
@@ -464,7 +466,7 @@ export const PreEnrolmentView: React.FC<PreEnrolmentViewProps> = ({
                                 src={st.avatar}
                                 alt={st.name}
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).src = '/avatars/rahul.png';
+                                  (e.target as HTMLElement).style.visibility = 'hidden';
                                 }}
                                 className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
                               />
@@ -644,7 +646,7 @@ export const PreEnrolmentView: React.FC<PreEnrolmentViewProps> = ({
                   src={selectedStudent.avatar}
                   alt={selectedStudent.name}
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/avatars/rahul.png';
+                    (e.target as HTMLElement).style.visibility = 'hidden';
                   }}
                   className="w-12 h-12 aspect-square rounded-full object-cover border-2 border-blue-500/30 shadow-xs"
                 />

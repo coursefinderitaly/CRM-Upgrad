@@ -18,6 +18,9 @@ import {
   AlertCircle,
 } from 'lucide-react';
 import { Lead } from '../../types/crm';
+import { LEAD_STATUS_OPTIONS } from '../../utils/statuses';
+import { StudentAvatar } from '../common/StudentAvatar';
+import { ActionConfirmModal } from '../modals/ActionConfirmModal';
 
 interface LeadDetailsPanelProps {
   lead: Lead | null;
@@ -25,10 +28,12 @@ interface LeadDetailsPanelProps {
   onEditLead: (lead: Lead) => void;
   onEnrollLead: (lead: Lead) => void;
   onScheduleFollowUp: (lead: Lead) => void;
+  onBookCounsellingSession?: (lead: Lead) => void;
   onOpenEmail: (lead: Lead) => void;
   onOpenWhatsApp: (lead: Lead) => void;
   onTransferDocs: (lead: Lead) => void;
   onAddNote: (leadId: string, note: string) => void;
+  onUpdateStatus?: (leadId: string, newStatus: string) => void;
 }
 
 export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
@@ -37,14 +42,17 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
   onEditLead,
   onEnrollLead,
   onScheduleFollowUp,
+  onBookCounsellingSession,
   onOpenEmail,
   onOpenWhatsApp,
   onTransferDocs,
   onAddNote,
+  onUpdateStatus,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeTab, setActiveTab] = useState<'profile' | 'academic' | 'test' | 'counselling' | 'notes'>('profile');
   const [newNoteText, setNewNoteText] = useState('');
+  const [pendingStatus, setPendingStatus] = useState<string | null>(null);
 
   if (!lead) {
     return (
@@ -120,51 +128,42 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
           {/* Selected Student Banner */}
           <div className="flex items-center justify-between gap-2 pb-1 border-b border-slate-100">
             <div className="flex items-center gap-2.5 min-w-0">
-              <img
-                src={
-                  lead.studentName === 'Rahul Sharma'
-                    ? '/avatars/rahul.png'
-                    : lead.studentName === 'Priya Singh'
-                    ? '/avatars/priya.png'
-                    : lead.studentName === 'Amit Kumar'
-                    ? '/avatars/amit.png'
-                    : lead.studentName === 'Sneha Patel'
-                    ? '/avatars/sneha.png'
-                    : lead.studentName === 'Rohit Verma'
-                    ? '/avatars/rohit.png'
-                    : lead.avatarUrl || '/avatars/rahul.png'
-                }
-                alt={lead.studentName}
-                className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
+              <StudentAvatar
+                name={lead.studentName}
+                src={lead.avatarUrl}
+                className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0 text-xs"
               />
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="text-[14px] font-bold text-[#101d37] leading-snug">
                     {lead.studentName}
                   </span>
-                  <span className="px-2 py-0.2 rounded-[4px] bg-[#dbeafe] text-[#1d4ed8] text-[10.5px] font-semibold leading-tight">
-                    {lead.status}
-                  </span>
-                </div>
-                <div className="text-[11px] text-[#64748b] leading-tight mt-0.5 flex items-center gap-2">
-                  <span>Lead ID: <span className="font-medium text-[#101d37]">{lead.leadId}</span></span>
-                  <a
-                    href={`#students?id=${
-                      lead.leadId === 'L2025100501' || lead.studentName.toLowerCase().includes('rahul')
-                        ? 'ITA-2027-001'
-                        : lead.studentName.toLowerCase().includes('priya')
-                        ? 'GER-2026-004'
-                        : lead.studentName.toLowerCase().includes('rohit')
-                        ? 'ITA-2027-008'
-                        : lead.studentName.toLowerCase().includes('sneha')
-                        ? 'UK-2026-012'
-                        : 'ITA-2027-001'
+                  <select
+                    value={lead.status}
+                    onChange={(e) => {
+                      const next = e.target.value;
+                      if (next && next !== lead.status) setPendingStatus(next);
+                    }}
+                    disabled={!onUpdateStatus}
+                    title="Update lead status"
+                    className={`px-2 py-0.2 rounded-[4px] text-[10.5px] font-semibold leading-tight outline-none cursor-pointer border disabled:cursor-default ${
+                      lead.status === 'On Hold' || lead.status === 'Drop'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : 'bg-[#dbeafe] text-[#1d4ed8] border-blue-200'
                     }`}
-                    className="text-[#087cf5] hover:underline font-semibold flex items-center gap-0.5 text-[10.5px]"
-                    title="View Full Student Profile"
                   >
-                    <span>View Student Profile &gt;</span>
-                  </a>
+                    {LEAD_STATUS_OPTIONS.map((status) => (
+                      <option key={status} value={status}>
+                        {status}
+                      </option>
+                    ))}
+                    {!LEAD_STATUS_OPTIONS.includes(lead.status as any) && (
+                      <option value={lead.status}>{lead.status}</option>
+                    )}
+                  </select>
+                </div>
+                <div className="text-[11px] text-[#64748b] leading-tight mt-0.5">
+                  <span>Lead ID: <span className="font-medium text-[#101d37]">{lead.leadId}</span></span>
                 </div>
               </div>
             </div>
@@ -255,17 +254,17 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
                   </div>
                   <div>
                     <span className="text-[#8496b0] block text-[10.5px]">DOB</span>
-                    <span className="font-medium text-[#101d37]">{lead.dob || '12 May 2000'}</span>
+                    <span className="font-medium text-[#101d37]">{lead.dob || 'Not provided'}</span>
                   </div>
                   <div>
                     <span className="text-[#8496b0] block text-[10.5px]">Address</span>
                     <span className="font-medium text-[#101d37] truncate block">
-                      {lead.address || 'Indore, Madhya Pradesh'}
+                      {lead.address || 'Not provided'}
                     </span>
                   </div>
                   <div>
                     <span className="text-[#8496b0] block text-[10.5px]">Nationality</span>
-                    <span className="font-medium text-[#101d37]">{lead.nationality || 'Indian'}</span>
+                    <span className="font-medium text-[#101d37]">{lead.nationality || 'Not specified'}</span>
                   </div>
                 </div>
               </div>
@@ -284,34 +283,34 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
                 <div className="grid grid-cols-2 gap-y-1.5 gap-x-2 text-[#52627a]">
                   <div>
                     <span className="text-[#8496b0] block text-[10.5px]">Country</span>
-                    <span className="font-semibold text-[#101d37]">{lead.countryInterest}</span>
+                    <span className="font-semibold text-[#101d37]">{lead.countryInterest || 'Not specified'}</span>
                   </div>
                   <div>
                     <span className="text-[#8496b0] block text-[10.5px]">Course</span>
                     <span className="font-medium text-[#101d37] truncate block">
-                      {lead.courseInterest}
+                      {lead.courseInterest || 'Not specified'}
                     </span>
                   </div>
                   <div>
                     <span className="text-[#8496b0] block text-[10.5px]">Intake</span>
-                    <span className="font-medium text-[#101d37]">{lead.intake || 'Sept 2026'}</span>
+                    <span className="font-medium text-[#101d37]">{lead.intake || 'Not specified'}</span>
                   </div>
                   <div>
                     <span className="text-[#8496b0] block text-[10.5px]">Budget</span>
                     <span className="font-medium text-[#101d37]">
-                      {lead.budget || '€ 8,000 – 15,000'}
+                      {lead.budget || 'Not specified'}
                     </span>
                   </div>
                   <div>
                     <span className="text-[#8496b0] block text-[10.5px]">University Type</span>
                     <span className="font-medium text-[#101d37]">
-                      {lead.universityType || 'Public / Private'}
+                      {lead.universityType || 'Any'}
                     </span>
                   </div>
                   <div>
                     <span className="text-[#8496b0] block text-[10.5px]">Preferred City</span>
                     <span className="font-medium text-[#101d37]">
-                      {lead.preferredCity || 'Rome / Milan'}
+                      {lead.preferredCity || 'Flexible'}
                     </span>
                   </div>
                 </div>
@@ -382,16 +381,16 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
                   <div className="flex items-center gap-1.5 text-[#101d37] font-semibold text-[12px]">
                     <Calendar className="w-4 h-4 text-[#087cf5] shrink-0" />
                     <span className="truncate">
-                      {lead.nextFollowUp} {lead.nextFollowUpTime || '11:00 AM'}
+                      {lead.nextFollowUp ? `${lead.nextFollowUp} ${lead.nextFollowUpTime || ''}` : 'Not scheduled yet'}
                     </span>
                   </div>
                   <div className="text-[11.5px] text-[#52627a] mt-1 leading-snug">
-                    {lead.nextFollowUpTask || 'Call to discuss university options'}
+                    {lead.nextFollowUpTask || 'No follow-up activity pending'}
                   </div>
                 </div>
               </div>
 
-              {/* Quick Actions (4 Buttons matching screenshot) */}
+              {/* Quick Actions */}
               <div className="pt-2.5 border-t border-slate-100 space-y-2">
                 <h3 className="font-bold text-[#101d37] text-[12.5px]">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-2">
@@ -440,41 +439,51 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
           {/* Tab 2: Academic */}
           {activeTab === 'academic' && (
             <div className="space-y-3 text-[11.5px]">
-              <div className="bg-[#f8fafc] p-2.5 rounded-md border border-slate-200">
-                <div className="font-bold text-[#101d37] mb-1">10th Education</div>
-                <div className="text-[#52627a]">
-                  Board: <span className="font-medium text-[#101d37]">{lead.tenthBoard || 'CBSE'}</span> •
-                  Score: <span className="font-medium text-[#101d37]">{lead.tenthPercentage || '86.4%'}</span> •
-                  Year: <span className="font-medium text-[#101d37]">{lead.tenthYear || '2016'}</span>
-                </div>
-              </div>
+              {lead.tenthPercentage || lead.twelfthPercentage || lead.graduationDegree ? (
+                <>
+                  <div className="bg-[#f8fafc] p-2.5 rounded-md border border-slate-200">
+                    <div className="font-bold text-[#101d37] mb-1">10th Education</div>
+                    <div className="text-[#52627a]">
+                      Board: <span className="font-medium text-[#101d37]">{lead.tenthBoard || '-'}</span> •
+                      Score: <span className="font-medium text-[#101d37]">{lead.tenthPercentage || '-'}</span> •
+                      Year: <span className="font-medium text-[#101d37]">{lead.tenthYear || '-'}</span>
+                    </div>
+                  </div>
 
-              <div className="bg-[#f8fafc] p-2.5 rounded-md border border-slate-200">
-                <div className="font-bold text-[#101d37] mb-1">12th Education</div>
-                <div className="text-[#52627a]">
-                  Board: <span className="font-medium text-[#101d37]">{lead.twelfthBoard || 'CBSE'}</span> •
-                  Score: <span className="font-medium text-[#101d37]">{lead.twelfthPercentage || '84.2%'}</span> •
-                  Year: <span className="font-medium text-[#101d37]">{lead.twelfthYear || '2018'}</span>
-                </div>
-              </div>
+                  <div className="bg-[#f8fafc] p-2.5 rounded-md border border-slate-200">
+                    <div className="font-bold text-[#101d37] mb-1">12th Education</div>
+                    <div className="text-[#52627a]">
+                      Board: <span className="font-medium text-[#101d37]">{lead.twelfthBoard || '-'}</span> •
+                      Score: <span className="font-medium text-[#101d37]">{lead.twelfthPercentage || '-'}</span> •
+                      Year: <span className="font-medium text-[#101d37]">{lead.twelfthYear || '-'}</span>
+                    </div>
+                  </div>
 
-              <div className="bg-[#f8fafc] p-2.5 rounded-md border border-slate-200">
-                <div className="font-bold text-[#101d37] mb-1">Undergraduate / Degree</div>
-                <div className="text-[#101d37] font-semibold">{lead.graduationDegree || 'B.Tech Computer Science'}</div>
-                <div className="text-[#52627a] mt-0.5">
-                  Univ: <span className="font-medium text-[#101d37]">{lead.graduationUniversity || 'RGPV Bhopal'}</span> •
-                  CGPA: <span className="font-medium text-[#16a34a]">{lead.graduationCgpa || '8.2 CGPA'}</span>
+                  <div className="bg-[#f8fafc] p-2.5 rounded-md border border-slate-200">
+                    <div className="font-bold text-[#101d37] mb-1">Undergraduate / Degree</div>
+                    <div className="text-[#101d37] font-semibold">{lead.graduationDegree || '-'}</div>
+                    <div className="text-[#52627a] mt-0.5">
+                      Univ: <span className="font-medium text-[#101d37]">{lead.graduationUniversity || '-'}</span> •
+                      CGPA: <span className="font-medium text-[#16a34a]">{lead.graduationCgpa || '-'}</span>
+                    </div>
+                    <div className="text-[#52627a] mt-0.5">
+                      Graduation Year: {lead.graduationYear || '-'} • Backlogs: {lead.backlogs || '0'}
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center text-slate-400">
+                  <GraduationCap className="w-6 h-6 mx-auto mb-1 text-slate-300" />
+                  <p className="font-medium text-xs text-slate-600">No Academic Records Yet</p>
+                  <p className="text-[10.5px] mt-0.5 text-slate-400">Add 10th, 12th, or degree qualification details.</p>
                 </div>
-                <div className="text-[#52627a] mt-0.5">
-                  Graduation Year: {lead.graduationYear || '2022'} • Backlogs: {lead.backlogs || '0'}
-                </div>
-              </div>
+              )}
 
               <button
                 onClick={() => onEditLead(lead)}
                 className="w-full py-1 text-center text-xs font-semibold text-[#087cf5] border border-blue-200 rounded-md hover:bg-blue-50"
               >
-                Edit Academic Records
+                {lead.tenthPercentage || lead.graduationDegree ? 'Edit Academic Records' : '+ Add Academic Details'}
               </button>
             </div>
           )}
@@ -482,30 +491,42 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
           {/* Tab 3: Test Score */}
           {activeTab === 'test' && (
             <div className="space-y-3 text-[11.5px]">
-              <div className="bg-[#f0f9ff] border border-blue-200 rounded-md p-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-[13px] text-[#0369a1]">{lead.testType || 'IELTS'} Academic</span>
-                  <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 font-bold text-[11px]">
-                    {lead.testResultStatus || 'Passed'}
-                  </span>
+              {lead.testOverallScore || lead.testType ? (
+                <div className="bg-[#f0f9ff] border border-blue-200 rounded-md p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="font-bold text-[13px] text-[#0369a1]">{lead.testType || 'IELTS'} Academic</span>
+                    <span className="px-2 py-0.5 rounded bg-green-100 text-green-700 font-bold text-[11px]">
+                      {lead.testResultStatus || 'Passed'}
+                    </span>
+                  </div>
+                  <div className="text-[20px] font-bold text-[#0f172a] mt-1">
+                    {lead.testOverallScore}{' '}
+                    <span className="text-xs font-normal text-slate-500">Overall Band</span>
+                  </div>
+                  {lead.testScoresDetails && (
+                    <div className="text-[11px] text-slate-600 mt-1">
+                      {lead.testScoresDetails}
+                    </div>
+                  )}
+                  {lead.testDate && (
+                    <div className="text-[10px] text-slate-500 mt-1">
+                      Exam Date: {lead.testDate}
+                    </div>
+                  )}
                 </div>
-                <div className="text-[20px] font-bold text-[#0f172a] mt-1">
-                  {lead.testOverallScore || '7.5'}{' '}
-                  <span className="text-xs font-normal text-slate-500">Overall Band</span>
+              ) : (
+                <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center text-slate-400">
+                  <Award className="w-6 h-6 mx-auto mb-1 text-slate-300" />
+                  <p className="font-medium text-xs text-slate-600">No English Test Scores Added</p>
+                  <p className="text-[10.5px] mt-0.5 text-slate-400">IELTS, TOEFL, PTE, or Duolingo scores can be added here.</p>
                 </div>
-                <div className="text-[11px] text-slate-600 mt-1">
-                  {lead.testScoresDetails || 'L: 8.0, R: 7.5, W: 7.0, S: 7.5'}
-                </div>
-                <div className="text-[10px] text-slate-500 mt-1">
-                  Exam Date: {lead.testDate || '15 Jan 2025'}
-                </div>
-              </div>
+              )}
 
               <button
                 onClick={() => onEditLead(lead)}
                 className="w-full py-1 text-center text-xs font-semibold text-[#087cf5] border border-blue-200 rounded-md hover:bg-blue-50"
               >
-                Update Test Scores
+                {lead.testOverallScore ? 'Update Test Scores' : '+ Add Test Scores'}
               </button>
             </div>
           )}
@@ -513,24 +534,36 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
           {/* Tab 4: Counselling */}
           {activeTab === 'counselling' && (
             <div className="space-y-2.5 text-[11.5px]">
-              <div className="bg-[#f8fafc] border border-slate-200 rounded-md p-2.5">
-                <div className="flex items-center justify-between text-[#8496b0] text-[10.5px]">
-                  <span>Session: 05 Oct 2025</span>
-                  <span>Counsellor: Neha Sharma</span>
+              {lead.counsellingSessions && lead.counsellingSessions.length > 0 ? (
+                lead.counsellingSessions.map((session, idx) => (
+                  <div key={idx} className="bg-[#f8fafc] border border-slate-200 rounded-md p-2.5">
+                    <div className="flex items-center justify-between text-[#8496b0] text-[10.5px]">
+                      <span>Session: {session.date}</span>
+                      <span>Counsellor: {session.counsellorName || (session as any).counsellor || 'Counsellor'}</span>
+                    </div>
+                    <p className="text-[#101d37] font-medium mt-1">
+                      {session.notes || (session as any).summary}
+                    </p>
+                    {session.outcome && (
+                      <div className="text-[#16a34a] text-[11px] mt-1 font-semibold">
+                        Outcome: {session.outcome}
+                      </div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <div className="p-4 bg-slate-50 border border-dashed border-slate-200 rounded-lg text-center text-slate-400">
+                  <BookOpen className="w-6 h-6 mx-auto mb-1 text-slate-300" />
+                  <p className="font-medium text-xs text-slate-600">No Counselling Sessions Yet</p>
+                  <p className="text-[10.5px] mt-0.5 text-slate-400">Schedule or record the first counselling session with this student.</p>
                 </div>
-                <p className="text-[#101d37] font-medium mt-1">
-                  Student evaluated for Italy public universities (Sapienza, Politecnico di Milano).
-                </p>
-                <div className="text-[#16a34a] text-[11px] mt-1 font-semibold">
-                  Outcome: Interested in English MSc AI / CS with scholarship.
-                </div>
-              </div>
+              )}
 
               <button
-                onClick={() => onScheduleFollowUp(lead)}
+                onClick={() => (onBookCounsellingSession || onScheduleFollowUp)(lead)}
                 className="w-full py-1.5 bg-[#087cf5] text-white rounded text-xs font-semibold hover:bg-blue-600 transition-colors shadow-xs"
               >
-                + Add Counselling Session
+                + Schedule / Add Counselling Session
               </button>
             </div>
           )}
@@ -560,19 +593,52 @@ export const LeadDetailsPanel: React.FC<LeadDetailsPanelProps> = ({
               </div>
 
               <div className="border-t border-slate-100 pt-2 space-y-2">
-                <div className="bg-slate-50 p-2 rounded border border-slate-200">
-                  <div className="flex items-center justify-between text-[10px] text-slate-500">
-                    <span className="font-bold text-[#101d37]">Neha Sharma</span>
-                    <span>05 Oct 2025</span>
+                {lead.notes ? (
+                  <div className="bg-slate-50 p-2 rounded border border-slate-200">
+                    <div className="flex items-center justify-between text-[10px] text-slate-500">
+                      <span className="font-bold text-[#101d37]">Counsellor</span>
+                      <span>Latest Note</span>
+                    </div>
+                    <p className="text-[11px] text-[#334155] mt-0.5">
+                      {lead.notes}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-[#334155] mt-0.5">
-                    {lead.notes || 'Strong candidate for Italy public universities. Wants English taught MSc in AI/Computer Science.'}
-                  </p>
-                </div>
+                ) : (
+                  <p className="text-center text-slate-400 text-xs py-2">No internal notes added yet.</p>
+                )}
               </div>
             </div>
           )}
         </div>
+      )}
+
+      {pendingStatus && (
+        <ActionConfirmModal
+          isOpen
+          onClose={() => setPendingStatus(null)}
+          onConfirm={() => {
+            if (onUpdateStatus) onUpdateStatus(lead.id, pendingStatus);
+            setPendingStatus(null);
+          }}
+          title={`Change status to "${pendingStatus}"?`}
+          studentName={lead.studentName}
+          studentId={lead.leadId}
+          studentAvatar={lead.avatarUrl}
+          country={lead.countryInterest}
+          currentStageName={lead.status}
+          targetStageName={pendingStatus}
+          description={`Are you sure you want to change ${lead.studentName}'s status from "${lead.status}" to "${pendingStatus}"? This will update the student profile immediately.`}
+          confirmLabel={`Yes, change to ${pendingStatus}`}
+          variant={
+            pendingStatus === 'Enrolled'
+              ? 'success'
+              : pendingStatus === 'Drop' || pendingStatus === 'Lost'
+                ? 'danger'
+                : pendingStatus === 'On Hold'
+                  ? 'warning'
+                  : 'primary'
+          }
+        />
       )}
     </div>
   );

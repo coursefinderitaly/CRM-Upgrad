@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Eye as EyeIcon } from 'lucide-react';
-import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
+import { countryFlag } from '../utils/country';
+import { StudentAvatar } from '../components/common/StudentAvatar';
 import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
 interface UniversityShortlistingViewProps {
@@ -184,7 +186,7 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
   onForwardToApplications,
   onNavigate,
 }) => {
-  const studentList = students && students.length > 0 ? students : INITIAL_STUDENTS;
+  const studentList = students || [];
 
   // Navigation State: Directory List vs Student Shortlist Profile
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
@@ -630,13 +632,10 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
                             </td>
                             <td className="py-3.5 px-3 min-w-[270px] align-middle">
                               <div className="flex items-center gap-3">
-                                <img
+                                <StudentAvatar
+                                  name={st.name}
                                   src={st.avatar}
-                                  alt={st.name}
-                                  onError={(e) => {
-                                    (e.target as HTMLImageElement).src = '/avatars/rahul.png';
-                                  }}
-                                  className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
+                                  className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs text-[11px]"
                                 />
                                 <div className="min-w-0">
                                   <div className="font-bold text-[#101d37] group-hover:text-[#087cf5] transition-colors text-[13px] leading-snug whitespace-nowrap">
@@ -658,7 +657,7 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
                             <td className="py-3.5 px-3 min-w-[210px] align-middle">
                               <div className="font-semibold text-[#101d37] text-[12px] flex items-center gap-1.5 whitespace-nowrap">
                                 <span className="text-sm">
-                                  {st.country === 'Italy' ? '🇮🇹' : st.country === 'Germany' ? '🇩🇪' : st.country === 'UK' ? '🇬🇧' : st.country === 'France' ? '🇫🇷' : '🇮🇪'}
+                                  {countryFlag(st.country)}
                                 </span>
                                 <span>{st.country}</span>
                                 <span className="text-[10.5px] text-slate-400 font-normal">({st.intake})</span>
@@ -776,7 +775,14 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
           ) : (
             /* Portfolio Cards Grid View */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {dirFilteredStudents.map((st) => {
+              {dirFilteredStudents.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-[9px] border border-[#e5edf5]">
+                  <GraduationCap className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-700">No students found matching your criteria</p>
+                  <p className="text-xs text-slate-400 mt-1">Shortlisted candidates will appear here.</p>
+                </div>
+              ) : (
+                dirFilteredStudents.map((st) => {
                 const pf = getStudentPortfolio(st);
                 return (
                   <div
@@ -788,18 +794,15 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
                       {/* Card Top: Student Profile */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2.5">
-                          <img
+                          <StudentAvatar
+                            name={st.name}
                             src={st.avatar}
-                            alt={st.name}
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/avatars/rahul.png';
-                            }}
-                            className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
+                            className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0 text-[11px]"
                           />
                           <div>
                             <div className="font-bold text-[#101d37] text-[13px]">{st.name}</div>
                             <div className="text-[10.5px] text-[#64748b]">
-                              ID: {st.studentId} • {st.country} {st.country === 'Italy' ? '🇮🇹' : st.country === 'Germany' ? '🇩🇪' : '🇬🇧'}
+                              ID: {st.studentId} • {st.country} {countryFlag(st.country)}
                             </div>
                           </div>
                         </div>
@@ -868,7 +871,8 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
                     </div>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           )}
         </div>
@@ -920,13 +924,10 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
           {/* Student Banner */}
           <div className="bg-white border border-[#e2e8f0] rounded-[9px] p-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <img
+              <StudentAvatar
+                name={selectedStudent.name}
                 src={selectedStudent.avatar}
-                alt={selectedStudent.name}
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/avatars/rahul.png';
-                }}
-                className="w-14 h-14 aspect-square rounded-full object-cover border-2 border-slate-200 shadow-xs shrink-0"
+                className="w-14 h-14 aspect-square rounded-full object-cover border-2 border-slate-200 shadow-xs shrink-0 text-base"
               />
               <div>
                 <div className="flex items-center gap-2">
@@ -949,7 +950,7 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
                 </div>
                 <div className="font-semibold text-[#101d37] flex items-center gap-1.5 mt-0.5">
                   <span className="text-sm">
-                    {selectedStudent.country === 'Italy' ? '🇮🇹' : selectedStudent.country === 'Germany' ? '🇩🇪' : selectedStudent.country === 'UK' ? '🇬🇧' : selectedStudent.country === 'France' ? '🇫🇷' : '🇮🇪'}
+                    {countryFlag(selectedStudent.country)}
                   </span>{' '}
                   {selectedStudent.country}
                 </div>
@@ -1049,14 +1050,6 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
               </button>
             </div>
           </div>
-
-      {/* Toast Alert */}
-      {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-[#087cf5] text-white px-4 py-2.5 rounded-lg shadow-lg text-[13px] font-medium flex items-center gap-2 animate-bounce">
-          <CheckCircle2 className="w-4 h-4" />
-          {toastMessage}
-        </div>
-      )}
 
       {/* Top Header & Breadcrumbs */}
       <div className="flex flex-wrap items-center justify-between gap-2">

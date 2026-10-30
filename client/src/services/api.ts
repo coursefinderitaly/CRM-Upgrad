@@ -1,7 +1,34 @@
-import { AnalyticsData, FollowUp, Lead, NotificationItem, Task, DocumentItem } from '../types/crm';
-import { INITIAL_LEADS, INITIAL_TASKS, INITIAL_NOTIFICATIONS, INITIAL_ANALYTICS } from './mockData';
+import { AnalyticsData, FollowUp, Lead, NotificationItem, Task, DocumentItem, CalendarEvent } from '../types/crm';
+import { PORTAL_CONFIGS, UserRole } from '../types/auth';
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || '/api';
+
+// Currently signed-in operator, used to attribute profile changes in the audit log
+export function getAuditActor(): { name: string | null; email: string | null; role: string | null } {
+  try {
+    const stored = localStorage.getItem('crm_auth_user_v1');
+    if (!stored) return { name: null, email: null, role: null };
+    const u = JSON.parse(stored);
+    return {
+      name: u?.name || null,
+      email: u?.email || null,
+      role: u?.role || null,
+    };
+  } catch {
+    return { name: null, email: null, role: null };
+  }
+}
+
+function getAuditPortal(role: string | null): string | null {
+  if (!role) return null;
+  const cfg = (PORTAL_CONFIGS as Record<string, { title: string }>)[role];
+  return cfg ? cfg.title : role;
+}
+
+function withAudit(body: Record<string, any>): Record<string, any> {
+  const actor = getAuditActor();
+  return { ...body, _actor: actor, _portal: getAuditPortal(actor.role) };
+}
 
 // Detect whether we are in a pure frontend deployment (like Vercel static) without a custom backend URL
 const isProductionFrontendOnly =
@@ -11,12 +38,7 @@ const isProductionFrontendOnly =
   !import.meta.env.VITE_API_URL;
 
 // Safe fetch wrapper: checks JSON content-type and parses safely inside try/catch
-async function safeFetchJson<T>(url: string, options?: RequestInit, timeoutMs = 1200): Promise<T | null> {
-  // If deployed in production without a custom API backend specified, immediately use mock data
-  if (isProductionFrontendOnly) {
-    return null;
-  }
-
+async function safeFetchJson<T>(url: string, options?: RequestInit, timeoutMs = 10000): Promise<T | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -36,67 +58,73 @@ async function safeFetchJson<T>(url: string, options?: RequestInit, timeoutMs = 
   }
 }
 
-// LocalStorage helpers for standalone/offline fallback store
+// LocalStorage helpers for cache
 function getLocalLeads(): Lead[] {
   try {
-    const stored = localStorage.getItem('crm_leads_v2');
+    const stored = localStorage.getItem('crm_leads_v3');
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) return parsed;
     }
   } catch (e) {
-    console.error('Error reading crm_leads_v2', e);
+    console.error('Error reading crm_leads_v3', e);
   }
-  return INITIAL_LEADS;
+  return [];
 }
 
 function saveLocalLeads(leads: Lead[]) {
   try {
-    localStorage.setItem('crm_leads_v2', JSON.stringify(leads));
+    localStorage.setItem('crm_leads_v3', JSON.stringify(leads));
   } catch (e) {
-    console.error('Error saving crm_leads_v2', e);
+    console.error('Error saving crm_leads_v3', e);
   }
 }
 
 function getLocalTasks(): Task[] {
   try {
-    const stored = localStorage.getItem('crm_tasks_v2');
+    const stored = localStorage.getItem('crm_tasks_v3');
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        const demoTaskIds = new Set(['task-1', 'task-2', 'task-3', 'task-4']);
+        return parsed.filter((t: Task) => !demoTaskIds.has(t.id));
+      }
     }
   } catch (e) {
-    console.error('Error reading crm_tasks_v2', e);
+    console.error('Error reading crm_tasks_v3', e);
   }
-  return INITIAL_TASKS;
+  return [];
 }
 
 function saveLocalTasks(tasks: Task[]) {
   try {
-    localStorage.setItem('crm_tasks_v2', JSON.stringify(tasks));
+    localStorage.setItem('crm_tasks_v3', JSON.stringify(tasks));
   } catch (e) {
-    console.error('Error saving crm_tasks_v2', e);
+    console.error('Error saving crm_tasks_v3', e);
   }
 }
 
 function getLocalNotifs(): NotificationItem[] {
   try {
-    const stored = localStorage.getItem('crm_notifs_v2');
+    const stored = localStorage.getItem('crm_notifs_v3');
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed)) {
+        const demoNotifIds = new Set(['notif-1', 'notif-2', 'notif-3']);
+        return parsed.filter((n: NotificationItem) => !demoNotifIds.has(n.id));
+      }
     }
   } catch (e) {
-    console.error('Error reading crm_notifs_v2', e);
+    console.error('Error reading crm_notifs_v3', e);
   }
-  return INITIAL_NOTIFICATIONS;
+  return [];
 }
 
 function saveLocalNotifs(notifs: NotificationItem[]) {
   try {
-    localStorage.setItem('crm_notifs_v2', JSON.stringify(notifs));
+    localStorage.setItem('crm_notifs_v3', JSON.stringify(notifs));
   } catch (e) {
-    console.error('Error saving crm_notifs_v2', e);
+    console.error('Error saving crm_notifs_v3', e);
   }
 }
 
@@ -117,15 +145,24 @@ export async function fetchAnalytics(): Promise<AnalyticsData> {
   const transferred = leads.filter((l) => l.isTransferredToDocs).length;
 
   return {
-    ...INITIAL_ANALYTICS,
     kpis: {
-      ...INITIAL_ANALYTICS.kpis,
-      totalLeads: { value: total, label: 'Total Leads', growth: '↑ 12%' },
-      contacted: { value: contacted, label: 'Contacted', growth: '↑ 8%' },
-      counsellingDone: { value: counselling, label: 'Counselling Done', growth: '↑ 20%' },
-      enrolled: { value: enrolled, label: 'Enrolled', growth: '↑ 14%' },
-      transferred: { value: transferred, label: 'Transferred to Documentation', growth: '↑ 25%' },
+      totalLeads: { value: total, label: 'Total Leads', growth: '—' },
+      contacted: { value: contacted, label: 'Contacted', growth: '—' },
+      counsellingDone: { value: counselling, label: 'Counselling Done', growth: '—' },
+      enrolled: { value: enrolled, label: 'Enrolled', growth: '—' },
+      transferred: { value: transferred, label: 'Transferred to Documentation', growth: '—' },
+      applicationInProcess: { value: 0, label: 'Application in Process', growth: '—' },
+      offerReceived: { value: 0, label: 'Offer Received', growth: '—' },
     },
+    counsellingSummary: [
+      { name: 'Total Leads', count: total, fill: '#087cf5' },
+      { name: 'Contacted', count: contacted, fill: '#10b981' },
+      { name: 'Counselling', count: counselling, fill: '#f59e0b' },
+      { name: 'Enrolled', count: enrolled, fill: '#ec4899' },
+      { name: 'Transferred', count: transferred, fill: '#8b5cf6' },
+    ],
+    leadSources: [],
+    countryInterest: [],
   };
 }
 
@@ -163,16 +200,28 @@ export async function fetchLeads(params?: {
   if (params?.tab && params.tab !== 'My Leads' && params.tab !== 'all') {
     const t = params.tab;
     if (t === 'Counselling') {
-      filtered = filtered.filter((l) => l.status === 'Counselling');
+      filtered = filtered.filter((l) => l.status === 'Counselling' && !l.isEnrolled);
+    } else if (t === 'New Leads' || t === 'New Lead') {
+      filtered = filtered.filter((l) => l.status === 'New Lead' && !l.isEnrolled);
+    } else if (t === 'Contacted') {
+      filtered = filtered.filter((l) => l.status === 'Contacted' && !l.isEnrolled);
+    } else if (t === 'Interested') {
+      filtered = filtered.filter((l) => l.status === 'Interested' && !l.isEnrolled);
     } else if (t === 'Enrolled') {
       filtered = filtered.filter((l) => l.status === 'Enrolled' || l.isEnrolled);
     } else if (t === 'Transferred') {
       filtered = filtered.filter((l) => l.isTransferredToDocs);
     } else if (t === 'On Hold') {
-      filtered = filtered.filter((l) => l.status === 'On Hold');
+      filtered = filtered.filter((l) => l.status === 'On Hold' && !l.isEnrolled);
+    } else if (t === 'Drop') {
+      filtered = filtered.filter((l) => l.status === 'Drop' && !l.isEnrolled);
     } else if (t === 'Lost') {
-      filtered = filtered.filter((l) => l.status === 'Lost');
+      filtered = filtered.filter((l) => l.status === 'Lost' && !l.isEnrolled);
     }
+  } else {
+    // Enrolled students belong only to the Enrolled Students section, even if
+    // their current status has advanced to Offer Received / Visa / etc.
+    filtered = filtered.filter((l) => l.status !== 'Enrolled' && !l.isEnrolled);
   }
 
   // Status Filter
@@ -215,12 +264,17 @@ export async function fetchLeads(params?: {
   }
 
   const tabCounts = {
-    myLeads: allLeads.length,
-    counselling: allLeads.filter((l) => l.status === 'Counselling').length,
+    myLeads: allLeads.filter((l) => l.status !== 'Enrolled' && !l.isEnrolled).length,
+    total: allLeads.length,
+    newLeads: allLeads.filter((l) => l.status === 'New Lead' && !l.isEnrolled).length,
+    contacted: allLeads.filter((l) => l.status === 'Contacted' && !l.isEnrolled).length,
+    counselling: allLeads.filter((l) => l.status === 'Counselling' && !l.isEnrolled).length,
+    interested: allLeads.filter((l) => l.status === 'Interested' && !l.isEnrolled).length,
     enrolled: allLeads.filter((l) => l.status === 'Enrolled' || l.isEnrolled).length,
     transferred: allLeads.filter((l) => l.isTransferredToDocs).length,
-    onHold: allLeads.filter((l) => l.status === 'On Hold').length,
-    lost: allLeads.filter((l) => l.status === 'Lost').length,
+    onHold: allLeads.filter((l) => l.status === 'On Hold' && !l.isEnrolled).length,
+    drop: allLeads.filter((l) => l.status === 'Drop' && !l.isEnrolled).length,
+    lost: allLeads.filter((l) => l.status === 'Lost' && !l.isEnrolled).length,
   };
 
   return { data: filtered, tabCounts };
@@ -240,7 +294,7 @@ export async function createLead(leadData: Partial<Lead>): Promise<Lead> {
   const remote = await safeFetchJson<Lead>(`${BASE_URL}/leads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(leadData),
+    body: JSON.stringify(withAudit(leadData as Record<string, any>)),
   });
   if (remote) return remote;
 
@@ -277,11 +331,11 @@ export async function createLead(leadData: Partial<Lead>): Promise<Lead> {
   return newLead;
 }
 
-export async function updateLead(id: string, updates: Partial<Lead>): Promise<Lead> {
+export async function updateLead(id: string, updates: Partial<Lead> & Record<string, any>): Promise<Lead> {
   const remote = await safeFetchJson<Lead>(`${BASE_URL}/leads/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates),
+    body: JSON.stringify(withAudit(updates as Record<string, any>)),
   });
   if (remote) return remote;
 
@@ -303,6 +357,7 @@ export async function enrollLead(id: string): Promise<{ lead: Lead; student: any
   const remote = await safeFetchJson<{ lead: Lead; student: any }>(`${BASE_URL}/leads/${id}/enroll`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(withAudit({})),
   });
   if (remote) return remote;
 
@@ -333,6 +388,7 @@ export async function transferToDocs(id: string): Promise<Lead> {
   const remote = await safeFetchJson<Lead>(`${BASE_URL}/leads/${id}/transfer-docs`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(withAudit({})),
   });
   if (remote) return remote;
 
@@ -356,6 +412,8 @@ export async function transferToDocs(id: string): Promise<Lead> {
 export async function deleteLead(id: string): Promise<void> {
   await safeFetchJson(`${BASE_URL}/leads/${id}`, {
     method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(withAudit({})),
   });
 
   const leads = getLocalLeads();
@@ -421,6 +479,16 @@ export async function createTask(task: Partial<Task>): Promise<Task> {
   const updated = [newTask, ...tasks];
   saveLocalTasks(updated);
   return newTask;
+}
+
+export async function deleteTask(id: string): Promise<boolean> {
+  await safeFetchJson(`${BASE_URL}/tasks/${id}`, {
+    method: 'DELETE',
+  });
+  const tasks = getLocalTasks();
+  const updated = tasks.filter((t) => t.id !== id);
+  saveLocalTasks(updated);
+  return true;
 }
 
 // ==========================================
@@ -517,6 +585,127 @@ export async function scheduleFollowUp(data: {
   return newFu;
 }
 
+export async function fetchFollowUps(): Promise<FollowUp[]> {
+  const remote = await safeFetchJson<FollowUp[]>(`${BASE_URL}/followups`);
+  if (remote) return remote;
+  const leads = getLocalLeads();
+  const all: FollowUp[] = [];
+  leads.forEach((l) => {
+    if (l.followUps) all.push(...l.followUps);
+  });
+  return all;
+}
+
+export async function deleteFollowUp(id: string): Promise<boolean> {
+  await safeFetchJson(`${BASE_URL}/followups/${id}`, { method: 'DELETE' });
+  const leads = getLocalLeads();
+  const updated = leads.map((l) => ({
+    ...l,
+    followUps: (l.followUps || []).filter((f) => f.id !== id),
+  }));
+  saveLocalLeads(updated);
+  return true;
+}
+
+// ==========================================
+// 5b. CALENDAR EVENTS (SQLite calendar.db)
+// ==========================================
+const CALENDAR_STORAGE_KEY = 'crm-calendar-events-v2';
+
+export async function fetchCalendarEvents(startDate?: string, endDate?: string): Promise<CalendarEvent[]> {
+  let url = `${BASE_URL}/calendar/events`;
+  const params = new URLSearchParams();
+  if (startDate) params.set('startDate', startDate);
+  if (endDate) params.set('endDate', endDate);
+  if (params.toString()) url += `?${params.toString()}`;
+
+  const remote = await safeFetchJson<CalendarEvent[]>(url);
+  if (remote && Array.isArray(remote)) {
+    try {
+      localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(remote));
+    } catch (e) {}
+    return remote;
+  }
+
+  try {
+    const cached = localStorage.getItem(CALENDAR_STORAGE_KEY);
+    if (cached) return JSON.parse(cached);
+  } catch (e) {}
+  return [];
+}
+
+export async function createCalendarEvent(eventData: Partial<CalendarEvent>): Promise<CalendarEvent> {
+  const remote = await safeFetchJson<CalendarEvent>(`${BASE_URL}/calendar/events`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(eventData),
+  });
+
+  const created: CalendarEvent = remote || {
+    id: `evt-${Date.now()}`,
+    title: eventData.title || 'Meeting',
+    type: eventData.type || 'followup',
+    date: eventData.date || new Date().toISOString().slice(0, 10),
+    time: eventData.time || '11:00 AM',
+    duration: eventData.duration || '30 mins',
+    studentName: eventData.studentName || '',
+    leadId: eventData.leadId,
+    phone: eventData.phone,
+    countryInterest: eventData.countryInterest || 'Italy',
+    counsellor: eventData.counsellor || 'Neha Sharma',
+    mode: eventData.mode || 'Phone Call',
+    priority: eventData.priority || 'Medium',
+    status: eventData.status || 'Scheduled',
+    notes: eventData.notes,
+  };
+
+  try {
+    const cached = localStorage.getItem(CALENDAR_STORAGE_KEY);
+    const list: CalendarEvent[] = cached ? JSON.parse(cached) : [];
+    localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify([created, ...list]));
+  } catch (e) {}
+
+  return created;
+}
+
+export async function updateCalendarEvent(id: string, data: Partial<CalendarEvent>): Promise<CalendarEvent | null> {
+  const remote = await safeFetchJson<CalendarEvent>(`${BASE_URL}/calendar/events/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  });
+
+  try {
+    const cached = localStorage.getItem(CALENDAR_STORAGE_KEY);
+    if (cached) {
+      const list: CalendarEvent[] = JSON.parse(cached);
+      const updated = list.map((e) => (e.id === id ? { ...e, ...data, ...(remote || {}) } : e));
+      localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(updated));
+    }
+  } catch (e) {}
+
+  return remote;
+}
+
+export async function deleteCalendarEvent(id: string): Promise<boolean> {
+  await safeFetchJson(`${BASE_URL}/calendar/events/${id}`, { method: 'DELETE' });
+
+  try {
+    const cached = localStorage.getItem(CALENDAR_STORAGE_KEY);
+    if (cached) {
+      const list: CalendarEvent[] = JSON.parse(cached);
+      localStorage.setItem(CALENDAR_STORAGE_KEY, JSON.stringify(list.filter((e) => e.id !== id)));
+    }
+  } catch (e) {}
+
+  return true;
+}
+
+// System operational databases status
+export async function fetchSystemDatabases(): Promise<any> {
+  return await safeFetchJson(`${BASE_URL}/system/databases`);
+}
+
 export async function sendEmail(data: { leadId?: string; to: string; subject: string; message: string }): Promise<void> {
   await safeFetchJson(`${BASE_URL}/communications/email`, {
     method: 'POST',
@@ -569,3 +758,508 @@ export async function fetchUniversities(): Promise<any[]> {
   if (remote) return remote;
   return [];
 }
+
+// ==========================================
+// 7. COMMON STUDENT PROFILE (SQL DATABASE)
+// ==========================================
+
+export interface CommonStudentProfile {
+  id: string;
+  student_id: string;
+  lead_id?: string;
+  name: string;
+  avatar: string;
+  phone: string;
+  email: string;
+  dob?: string;
+  address?: string;
+  nationality: string;
+  country: string;
+  country_code: string;
+  target_university?: string;
+  preferred_course: string;
+  alternative_courses?: string;
+  course_level: string;
+  intake: string;
+  budget?: string;
+  counsellor_name: string;
+  enrollment_date?: string;
+  next_follow_up?: string;
+  overall_status: string;
+  current_stage: string;
+  stage_number: number;
+  priority: string;
+  created_at: string;
+  updated_at: string;
+  folder_name?: string;
+  db_file?: string;
+  documents_folder?: string;
+  physical_documents?: Array<{
+    name: string;
+    size: number;
+    sizeFormatted: string;
+    modified: string;
+    relativePath: string;
+  }>;
+  academic?: {
+    id?: string;
+    tenth_board?: string;
+    tenth_percentage?: string;
+    twelfth_board?: string;
+    twelfth_percentage?: string;
+    bachelor_degree?: string;
+    bachelor_university?: string;
+    bachelor_cgpa?: string;
+    bachelor_passing_year?: string;
+    backlogs?: string;
+    education_gaps?: string;
+    work_experience?: string;
+  };
+  test_scores?: Array<{
+    id: string;
+    test_type: string;
+    overall_score: string;
+    reading: string;
+    writing: string;
+    listening: string;
+    speaking: string;
+    test_date: string;
+    status: string;
+  }>;
+  counselling?: {
+    counsellor_name?: string;
+    session_date?: string;
+    preferred_countries?: string;
+    budget_bracket?: string;
+    notes?: string;
+    recommendations?: string;
+    outcome?: string;
+  };
+  counselling_sessions?: Array<{
+    id: string;
+    student_id: string;
+    lead_id?: string;
+    session_date: string;
+    session_time: string;
+    counsellor_name: string;
+    session_type?: string;
+    mode?: string;
+    status?: string;
+    notes?: string;
+    recommendations?: string;
+    concerns?: string;
+    outcome?: string;
+    created_at?: string;
+  }>;
+  shortlists?: Array<{
+    id: string;
+    university_name: string;
+    program_name: string;
+    country: string;
+    tuition_fee: string;
+    cfu_credits: string;
+    status: string;
+  }>;
+  approval?: {
+    choice_1_university?: string;
+    choice_2_university?: string;
+    agreement_signed?: boolean | number;
+    agreement_status?: string;
+    student_signature_note?: string;
+    service_package?: string;
+    total_fee?: string;
+    amount_paid?: string;
+    balance?: string;
+    payment_schedule?: string;
+  };
+  documents?: Array<{
+    id: string;
+    document_name: string;
+    category: string;
+    status: string;
+    remarks: string;
+    verified_by: string;
+  }>;
+  applications?: Array<{
+    id: string;
+    university_name: string;
+    program_name: string;
+    portal_application_id: string;
+    submission_date: string;
+    status: string;
+  }>;
+  offers?: Array<{
+    id: string;
+    university_name: string;
+    offer_type: string;
+    received_date: string;
+    conditions: string;
+    deposit_amount: string;
+    seat_confirmed: boolean | number;
+    status: string;
+  }>;
+  scholarship?: {
+    scholarship_name?: string;
+    isee_parificato_amount?: string;
+    stipend_amount?: string;
+    status?: string;
+  };
+  pre_enrolment?: {
+    universitaly_summary_code?: string;
+    university_validation_status?: string;
+    status?: string;
+  };
+  legalization?: {
+    process_type?: string;
+    cimea_diploma_ref?: string;
+    status?: string;
+  };
+  visa?: {
+    vfs_center?: string;
+    appointment_date?: string;
+    appointment_time?: string;
+    visa_type?: string;
+    vfs_reference_no?: string;
+    checklist_verification?: string;
+    financial_proof_amount?: string;
+    decision?: string;
+    decision_date?: string;
+  };
+  pre_departure?: {
+    flight_booking_status?: string;
+    accommodation_status?: string;
+    forex_card_status?: string;
+    status?: string;
+  };
+  timeline?: Array<{
+    id: string;
+    action: string;
+    portal_role: string;
+    operator_name: string;
+    details: string;
+    dot_color: string;
+    created_at: string;
+  }>;
+}
+
+export async function fetchCommonProfiles(): Promise<CommonStudentProfile[]> {
+  const remote = await safeFetchJson<{ success: boolean; data: CommonStudentProfile[] }>(`${BASE_URL}/student-profiles`);
+  if (remote && remote.data) return remote.data;
+  return [];
+}
+
+export async function fetchCommonProfileById(id: string): Promise<CommonStudentProfile | null> {
+  const remote = await safeFetchJson<{ success: boolean; data: CommonStudentProfile }>(`${BASE_URL}/student-profiles/${encodeURIComponent(id)}`);
+  if (remote && remote.data) return remote.data;
+  return null;
+}
+
+export async function createCommonProfile(profileData: Partial<CommonStudentProfile>): Promise<CommonStudentProfile | null> {
+  const remote = await safeFetchJson<{ success: boolean; data: CommonStudentProfile }>(
+    `${BASE_URL}/student-profiles`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(profileData),
+    }
+  );
+  if (remote && remote.data) return remote.data;
+  return null;
+}
+
+export async function updateCommonProfileSection(
+  studentId: string,
+  section: string,
+  data: any,
+  operatorName = 'Staff Operator',
+  portalRole = 'counsellor',
+  actorDetails?: { email?: string; portal?: string }
+): Promise<CommonStudentProfile | null> {
+  const remote = await safeFetchJson<{ success: boolean; data: CommonStudentProfile }>(
+    `${BASE_URL}/student-profiles/${encodeURIComponent(studentId)}/section/${encodeURIComponent(section)}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data,
+        operatorName,
+        portalRole,
+        _actor: {
+          name: operatorName,
+          email: actorDetails?.email || null,
+          role: portalRole,
+          portal: actorDetails?.portal || null,
+        },
+        _portal: actorDetails?.portal || null,
+      }),
+    }
+  );
+  if (remote && remote.data) return remote.data;
+  return null;
+}
+
+export async function bookCounsellingSession(
+  studentIdOrCode: string,
+  session: {
+    session_date?: string;
+    session_time?: string;
+    counsellor_name?: string;
+    session_type?: string;
+    mode?: string;
+    status?: string;
+    notes?: string;
+    recommendations?: string;
+    concerns?: string;
+    outcome?: string;
+  },
+  actorDetails?: { name?: string; email?: string; role?: string; portal?: string }
+): Promise<CommonStudentProfile | null> {
+  const actor = getAuditActor();
+  const remote = await safeFetchJson<{ success: boolean; data: CommonStudentProfile }>(
+    `${BASE_URL}/student-profiles/${encodeURIComponent(studentIdOrCode)}/counselling-sessions`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: session,
+        operatorName: actorDetails?.name || actor.name || 'Staff Operator',
+        portalRole: actorDetails?.portal || actorDetails?.role || actor.role || 'counsellor',
+        _actor: {
+          name: actorDetails?.name || actor.name || null,
+          email: actorDetails?.email || actor.email || null,
+          role: actorDetails?.role || actor.role || null,
+          portal: actorDetails?.portal || actor.role || null,
+        },
+      }),
+    }
+  );
+  return remote?.data || null;
+}
+
+export async function removeCounsellingSession(
+  studentIdOrCode: string,
+  sessionId: string,
+  actorDetails?: { name?: string; email?: string; role?: string; portal?: string }
+): Promise<CommonStudentProfile | null> {
+  const actor = getAuditActor();
+  const remote = await safeFetchJson<{ success: boolean; data: CommonStudentProfile }>(
+    `${BASE_URL}/student-profiles/${encodeURIComponent(studentIdOrCode)}/counselling-sessions/${encodeURIComponent(sessionId)}`,
+    {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        operatorName: actorDetails?.name || actor.name || 'Staff Operator',
+        portalRole: actorDetails?.portal || actorDetails?.role || actor.role || 'counsellor',
+        _actor: {
+          name: actorDetails?.name || actor.name || null,
+          email: actorDetails?.email || actor.email || null,
+          role: actorDetails?.role || actor.role || null,
+          portal: actorDetails?.portal || actor.role || null,
+        },
+      }),
+    }
+  );
+  return remote?.data || null;
+}
+
+export async function addProfileTimelineActivity(
+  studentId: string,
+  action: string,
+  details?: string,
+  actor?: string,
+  portalRole?: string
+): Promise<CommonStudentProfile | null> {
+  const remote = await safeFetchJson<{ success: boolean; data: CommonStudentProfile }>(
+    `${BASE_URL}/student-profiles/${encodeURIComponent(studentId)}/timeline`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action, details, actor, portalRole }),
+    }
+  );
+  if (remote && remote.data) return remote.data;
+  return null;
+}
+
+// ==========================================
+// PROFILE AUDIT (History section)
+// ==========================================
+
+export interface AuditEntry {
+  id: string;
+  entityType: string;
+  entityId: string;
+  entityCode: string | null;
+  studentName: string | null;
+  action: string;
+  field: string | null;
+  oldValue: string | null;
+  newValue: string | null;
+  actorName: string | null;
+  actorEmail: string | null;
+  actorRole: string | null;
+  portal: string | null;
+  createdAt: string;
+}
+
+export interface AuditFilters {
+  search?: string;
+  portal?: string;
+  action?: string;
+  entityId?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export async function fetchAudit(filters: AuditFilters = {}): Promise<{ total: number; entries: AuditEntry[] }> {
+  const params = new URLSearchParams();
+  if (filters.search) params.set('search', filters.search);
+  if (filters.portal) params.set('portal', filters.portal);
+  if (filters.action) params.set('action', filters.action);
+  if (filters.entityId) params.set('entityId', filters.entityId);
+  if (filters.limit) params.set('limit', String(filters.limit));
+  if (filters.offset) params.set('offset', String(filters.offset));
+
+  const qs = params.toString();
+  const remote = await safeFetchJson<{ success: boolean; total: number; entries: AuditEntry[] }>(
+    `${BASE_URL}/audit${qs ? `?${qs}` : ''}`
+  );
+  if (remote) return { total: remote.total || 0, entries: remote.entries || [] };
+  return { total: 0, entries: [] };
+}
+
+export type HistoryRecord = AuditEntry;
+export type HistoryFilters = AuditFilters;
+export const fetchHistory = fetchAudit;
+
+export async function fetchGoogleSheetConfig(): Promise<{ success: boolean; config?: any; error?: string }> {
+  const remote = await safeFetchJson<{ success: boolean; config: any }>(`${BASE_URL}/google-sheet/config`);
+  if (remote && remote.success) return remote;
+  return { success: false, error: 'Failed to fetch Google Sheet configuration' };
+}
+
+export async function saveGoogleSheetConfig(data: { sheetUrl?: string; fieldMapping?: any; visibleColumns?: any }): Promise<{ success: boolean; config?: any; error?: string }> {
+  const remote = await safeFetchJson<{ success: boolean; config: any }>(
+    `${BASE_URL}/google-sheet/config`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    }
+  );
+  if (remote && remote.success) return remote;
+  return { success: false, error: 'Failed to save Google Sheet configuration' };
+}
+
+export async function recordGoogleSheetConverted(payload: { key: string; studentId: string; studentName: string; counsellor: string }): Promise<{ success: boolean; error?: string }> {
+  const remote = await safeFetchJson<{ success: boolean }>(
+    `${BASE_URL}/google-sheet/converted`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }
+  );
+  if (remote && remote.success) return remote;
+  return { success: false, error: 'Failed to record converted lead' };
+}
+
+export async function fetchGoogleSheetCsv(sheetUrl?: string): Promise<{ success: boolean; csvText?: string; config?: any; error?: string }> {
+  const remote = await safeFetchJson<{ success: boolean; csvText: string; config?: any; error?: string }>(
+    `${BASE_URL}/google-sheet/fetch`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sheetUrl: sheetUrl || undefined }),
+    }
+  );
+  if (remote && remote.success) return remote;
+  return { success: false, error: remote?.error || 'Failed to fetch Google Sheet data' };
+}
+
+export interface StudentPaymentPlan {
+  id?: string;
+  student_id?: string;
+  plan_name?: string;
+  agreed_budget?: string;
+  total_package_fee?: number;
+  total_paid?: number;
+  balance_due?: number;
+  installment_count?: number;
+  gst_included?: boolean | number;
+  gst_percentage?: number;
+  gst_amount?: number;
+  currency?: string;
+  payment_status?: string;
+  notes?: string;
+}
+
+export interface PaymentInstallment {
+  id?: string;
+  student_id?: string;
+  payment_id?: string;
+  installment_number: number;
+  title: string;
+  amount: number;
+  gst_rate?: number;
+  gst_type?: string;
+  gst_amount?: number;
+  total_amount?: number;
+  payment_date?: string | null;
+  due_date?: string | null;
+  payment_mode?: string;
+  transaction_ref?: string;
+  receipt_no?: string;
+  status?: string;
+  collected_by?: string;
+  notes?: string;
+}
+
+export async function fetchStudentPayments(studentIdOrLeadId: string): Promise<{ success: boolean; data?: { payments: StudentPaymentPlan; installments: PaymentInstallment[] }; error?: string }> {
+  const remote = await safeFetchJson<{ success: boolean; data: { payments: StudentPaymentPlan; installments: PaymentInstallment[] } }>(
+    `${BASE_URL}/student-profiles/${studentIdOrLeadId}/payments`
+  );
+  if (remote && remote.success) return remote;
+  return { success: false, error: 'Failed to fetch student payments' };
+}
+
+export async function saveStudentPaymentPlan(studentIdOrLeadId: string, planData: Partial<StudentPaymentPlan>): Promise<{ success: boolean; data?: any; error?: string }> {
+  const remote = await safeFetchJson<{ success: boolean; data: any }>(
+    `${BASE_URL}/student-profiles/${studentIdOrLeadId}/payments/plan`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(withAudit({ data: planData })),
+    }
+  );
+  if (remote && remote.success) return remote;
+  return { success: false, error: 'Failed to update payment plan' };
+}
+
+export async function savePaymentInstallment(studentIdOrLeadId: string, installmentData: Partial<PaymentInstallment>): Promise<{ success: boolean; data?: any; error?: string }> {
+  const remote = await safeFetchJson<{ success: boolean; data: any }>(
+    `${BASE_URL}/student-profiles/${studentIdOrLeadId}/payments/installments`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(withAudit({ installment: installmentData })),
+    }
+  );
+  if (remote && remote.success) return remote;
+  return { success: false, error: 'Failed to save payment installment' };
+}
+
+export async function deletePaymentInstallment(studentIdOrLeadId: string, installmentId: string): Promise<{ success: boolean; data?: any; error?: string }> {
+  const remote = await safeFetchJson<{ success: boolean; data: any }>(
+    `${BASE_URL}/student-profiles/${studentIdOrLeadId}/payments/installments/${installmentId}`,
+    {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(withAudit({})),
+    }
+  );
+  if (remote && remote.success) return remote;
+  return { success: false, error: 'Failed to delete payment installment' };
+}
+
+

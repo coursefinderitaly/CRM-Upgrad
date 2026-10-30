@@ -38,7 +38,7 @@ import {
   ExternalLink,
   FileUp,
 } from 'lucide-react';
-import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
 import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
 export interface DocumentItem {
@@ -63,120 +63,39 @@ interface DocumentationViewProps {
   onNavigate?: (route: string) => void;
 }
 
-// Default 12-item checklist generator tailored for student profiles
-const generateDefaultChecklistForStudent = (student: StudentRecord): DocumentItem[] => {
-  const isSneha = student.studentId === 'UK-2026-012' || student.name.toLowerCase().includes('sneha');
-  const isRahul = student.studentId === 'GER-2025-001' || student.name.toLowerCase().includes('rahul');
-  const isPriya = student.studentId === 'ITA-2025-004' || student.name.toLowerCase().includes('priya');
-  const isRohit = student.studentId === 'IRE-2026-009' || student.name.toLowerCase().includes('rohit');
-  const isAmit = student.studentId === 'FRA-2026-018' || student.name.toLowerCase().includes('amit');
+// Build the checklist from the student's own SQLite-backed document rows.
+// If the profile has no documents yet, the docs portal starts empty.
+const categoryForDocument = (name: string): DocumentItem['category'] => {
+  const n = name.toLowerCase();
+  if (n.includes('passport') || n.includes('cv') || n.includes('resume')) return 'Identity';
+  if (n.includes('ielts') || n.includes('toefl') || n.includes('pte') || n.includes('duolingo')) return 'Language';
+  if (n.includes('sop') || n.includes('recommendation') || n.includes('lor')) return 'Statements';
+  if (n.includes('bank') || n.includes('financial') || n.includes('affidavit')) return 'Financial';
+  if (n.includes('marksheet') || n.includes('degree') || n.includes('transcript') || n.includes('certificate')) return 'Academic';
+  return 'Other';
+};
 
-  if (isSneha) {
-    // Exactly matches 8/12 verified as shown in the dossier screenshot
-    return [
-      { id: 1, category: 'Identity', name: 'Passport (Bio & Address Pages)', status: 'Approved', submittedOn: '02 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'passport_sneha_patel.pdf', fileSize: '1.8 MB' },
-      { id: 2, category: 'Academic', name: '10th Secondary Marksheet', status: 'Approved', submittedOn: '03 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: '10th_marksheet_sneha.pdf', fileSize: '1.2 MB' },
-      { id: 3, category: 'Academic', name: '12th Higher Secondary Marksheet', status: 'Approved', submittedOn: '04 Oct 2025', verifiedBy: 'Sneha Patel', fileUrl: '12th_marksheet_sneha.pdf', fileSize: '1.4 MB' },
-      { id: 4, category: 'Academic', name: 'Bachelor Degree Certificate', status: 'Approved', submittedOn: '05 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'bachelor_degree_sneha.pdf', fileSize: '2.1 MB' },
-      { id: 5, category: 'Academic', name: 'Semester Transcripts (All Semesters)', status: 'Approved', submittedOn: '01 Oct 2025', verifiedBy: 'Amit Kumar', fileUrl: 'transcripts_all_semesters.pdf', fileSize: '4.2 MB' },
-      { id: 6, category: 'Language', name: 'IELTS / PTE / TOEFL Score Report', status: 'Under Review', submittedOn: '06 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'ielts_academic_report.pdf', fileSize: '850 KB' },
-      { id: 7, category: 'Statements', name: 'Statement of Purpose (SOP - Final Draft)', status: 'Approved', submittedOn: '03 Oct 2025', verifiedBy: 'Sneha Patel', fileUrl: 'sop_uk_msc_data.docx', fileSize: '320 KB' },
-      { id: 8, category: 'Statements', name: 'Letters of Recommendation (LOR - 2 Academic)', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-      { id: 9, category: 'Statements', name: 'Curriculum Vitae (CV - EuroPass/UK Format)', status: 'Approved', submittedOn: '02 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: 'cv_sneha_patel.pdf', fileSize: '450 KB' },
-      { id: 10, category: 'Financial', name: 'Bank Solvency & Financial Statement', status: 'Re-upload Required', submittedOn: '07 Oct 2025', verifiedBy: 'Amit Kumar', fileUrl: 'bank_solvency_statement.pdf', fileSize: '1.9 MB', notes: 'Requires bank official seal and 28-day holding period proof' },
-      { id: 11, category: 'Financial', name: 'Affidavit of Financial Support', status: 'Received', submittedOn: '08 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'financial_affidavit_father.pdf', fileSize: '620 KB' },
-      { id: 12, category: 'Academic', name: 'Medium of Instruction (MOI) Certificate', status: 'Approved', submittedOn: '05 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: 'moi_certificate_pune_univ.pdf', fileSize: '920 KB' },
-    ];
-  }
+const statusForDocument = (status?: string): DocumentItem['status'] => {
+  const s = (status || '').toLowerCase();
+  if (s.includes('approved')) return 'Approved';
+  if (s.includes('verified') || s.includes('received')) return 'Received';
+  if (s.includes('re-upload') || s.includes('reupload')) return 'Re-upload Required';
+  if (s.includes('review')) return 'Under Review';
+  return 'Pending';
+};
 
-  if (isRahul) {
-    // 11/12 verified (Germany APS)
-    return [
-      { id: 1, category: 'Identity', name: 'Passport (Bio & Address Pages)', status: 'Approved', submittedOn: '15 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'passport_rahul_sharma.pdf', fileSize: '1.9 MB' },
-      { id: 2, category: 'Academic', name: '10th Secondary Marksheet', status: 'Approved', submittedOn: '16 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: '10th_marksheet_rahul.pdf', fileSize: '1.1 MB' },
-      { id: 3, category: 'Academic', name: '12th Higher Secondary Marksheet', status: 'Approved', submittedOn: '16 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: '12th_marksheet_rahul.pdf', fileSize: '1.3 MB' },
-      { id: 4, category: 'Academic', name: 'Bachelor Degree Certificate', status: 'Approved', submittedOn: '17 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'bachelor_degree_rahul.pdf', fileSize: '2.4 MB' },
-      { id: 5, category: 'Academic', name: 'Semester Transcripts (All Semesters)', status: 'Approved', submittedOn: '18 Sep 2025', verifiedBy: 'Amit Kumar', fileUrl: 'transcripts_rahul_all.pdf', fileSize: '3.8 MB' },
-      { id: 6, category: 'Language', name: 'IELTS / PTE / TOEFL Score Report', status: 'Approved', submittedOn: '20 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'ielts_band7.5_rahul.pdf', fileSize: '890 KB' },
-      { id: 7, category: 'Statements', name: 'Statement of Purpose (SOP - Final Draft)', status: 'Approved', submittedOn: '21 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'sop_tu_munich_automotive.pdf', fileSize: '380 KB' },
-      { id: 8, category: 'Statements', name: 'Letters of Recommendation (LOR - 2 Academic)', status: 'Approved', submittedOn: '22 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: 'lor_prof_rao_rahul.pdf', fileSize: '650 KB' },
-      { id: 9, category: 'Statements', name: 'Curriculum Vitae (CV - EuroPass/UK Format)', status: 'Approved', submittedOn: '15 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: 'cv_rahul_sharma.pdf', fileSize: '420 KB' },
-      { id: 10, category: 'Financial', name: 'German Blocked Account / Solvency Proof', status: 'Approved', submittedOn: '25 Sep 2025', verifiedBy: 'Amit Kumar', fileUrl: 'fintiba_blocked_acc_rahul.pdf', fileSize: '1.5 MB' },
-      { id: 11, category: 'Financial', name: 'Affidavit of Financial Support', status: 'Approved', submittedOn: '26 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'affidavit_support_rahul.pdf', fileSize: '510 KB' },
-      { id: 12, category: 'Academic', name: 'APS India Certificate (Germany Mandatory)', status: 'Under Review', submittedOn: '28 Sep 2025', verifiedBy: 'Amit Kumar', fileUrl: 'aps_verification_app.pdf', fileSize: '1.2 MB' },
-    ];
-  }
-
-  if (isPriya) {
-    // 9/12 verified (Italy CIMEA)
-    return [
-      { id: 1, category: 'Identity', name: 'Passport (Bio & Address Pages)', status: 'Approved', submittedOn: '18 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'passport_priya_singh.pdf', fileSize: '1.7 MB' },
-      { id: 2, category: 'Academic', name: '10th Secondary Marksheet', status: 'Approved', submittedOn: '19 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: '10th_marksheet_priya.pdf', fileSize: '1.2 MB' },
-      { id: 3, category: 'Academic', name: '12th Higher Secondary Marksheet', status: 'Approved', submittedOn: '19 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: '12th_marksheet_priya.pdf', fileSize: '1.3 MB' },
-      { id: 4, category: 'Academic', name: 'Bachelor Degree Certificate', status: 'Approved', submittedOn: '20 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'bachelor_degree_priya.pdf', fileSize: '2.0 MB' },
-      { id: 5, category: 'Academic', name: 'Semester Transcripts (All Semesters)', status: 'Approved', submittedOn: '21 Sep 2025', verifiedBy: 'Amit Kumar', fileUrl: 'transcripts_priya_all.pdf', fileSize: '3.5 MB' },
-      { id: 6, category: 'Language', name: 'IELTS / PTE / TOEFL Score Report', status: 'Approved', submittedOn: '22 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'ielts_band7_priya.pdf', fileSize: '910 KB' },
-      { id: 7, category: 'Statements', name: 'Statement of Purpose (SOP - Final Draft)', status: 'Approved', submittedOn: '23 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'sop_polimi_design.pdf', fileSize: '340 KB' },
-      { id: 8, category: 'Statements', name: 'Letters of Recommendation (LOR - 2 Academic)', status: 'Approved', submittedOn: '24 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: 'lor_priya_academic.pdf', fileSize: '700 KB' },
-      { id: 9, category: 'Statements', name: 'Portfolio / Design Portfolio', status: 'Approved', submittedOn: '25 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: 'portfolio_priya_design.pdf', fileSize: '8.4 MB' },
-      { id: 10, category: 'Financial', name: 'Bank Solvency & Financial Statement', status: 'Under Review', submittedOn: '28 Sep 2025', verifiedBy: 'Amit Kumar', fileUrl: 'bank_statement_priya.pdf', fileSize: '1.8 MB' },
-      { id: 11, category: 'Financial', name: 'Affidavit of Financial Support', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-      { id: 12, category: 'Academic', name: 'CIMEA / Declaration of Value (Italy)', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-    ];
-  }
-
-  if (isRohit) {
-    // 6/12 verified (Ireland)
-    return [
-      { id: 1, category: 'Identity', name: 'Passport (Bio & Address Pages)', status: 'Approved', submittedOn: '28 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'passport_rohit_verma.pdf', fileSize: '1.6 MB' },
-      { id: 2, category: 'Academic', name: '10th Secondary Marksheet', status: 'Approved', submittedOn: '29 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: '10th_marksheet_rohit.pdf', fileSize: '1.1 MB' },
-      { id: 3, category: 'Academic', name: '12th Higher Secondary Marksheet', status: 'Approved', submittedOn: '29 Sep 2025', verifiedBy: 'Rohit Verma', fileUrl: '12th_marksheet_rohit.pdf', fileSize: '1.2 MB' },
-      { id: 4, category: 'Academic', name: 'Bachelor Degree Certificate', status: 'Approved', submittedOn: '30 Sep 2025', verifiedBy: 'Priya Singh', fileUrl: 'bachelor_degree_rohit.pdf', fileSize: '1.9 MB' },
-      { id: 5, category: 'Academic', name: 'Semester Transcripts (All Semesters)', status: 'Approved', submittedOn: '01 Oct 2025', verifiedBy: 'Amit Kumar', fileUrl: 'transcripts_rohit.pdf', fileSize: '3.1 MB' },
-      { id: 6, category: 'Language', name: 'IELTS / PTE / TOEFL Score Report', status: 'Under Review', submittedOn: '02 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'duolingo_english_score.pdf', fileSize: '650 KB' },
-      { id: 7, category: 'Statements', name: 'Statement of Purpose (SOP - Final Draft)', status: 'Approved', submittedOn: '03 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'sop_tcd_cloud_computing.pdf', fileSize: '310 KB' },
-      { id: 8, category: 'Statements', name: 'Letters of Recommendation (LOR - 2 Academic)', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-      { id: 9, category: 'Statements', name: 'Curriculum Vitae (CV - EuroPass)', status: 'Under Review', submittedOn: '04 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: 'cv_rohit_verma.pdf', fileSize: '410 KB' },
-      { id: 10, category: 'Financial', name: 'Bank Solvency & Financial Statement', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-      { id: 11, category: 'Financial', name: 'Affidavit of Financial Support', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-      { id: 12, category: 'Academic', name: 'Medium of Instruction (MOI) Certificate', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-    ];
-  }
-
-  if (isAmit) {
-    // 4/12 verified (France)
-    return [
-      { id: 1, category: 'Identity', name: 'Passport (Bio & Address Pages)', status: 'Approved', submittedOn: '01 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'passport_amit_kumar.pdf', fileSize: '1.7 MB' },
-      { id: 2, category: 'Academic', name: '10th Secondary Marksheet', status: 'Approved', submittedOn: '02 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: '10th_marksheet_amit.pdf', fileSize: '1.2 MB' },
-      { id: 3, category: 'Academic', name: '12th Higher Secondary Marksheet', status: 'Approved', submittedOn: '02 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: '12th_marksheet_amit.pdf', fileSize: '1.3 MB' },
-      { id: 4, category: 'Academic', name: 'Bachelor Degree Certificate', status: 'Approved', submittedOn: '03 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'bachelor_degree_amit.pdf', fileSize: '2.1 MB' },
-      { id: 5, category: 'Academic', name: 'Semester Transcripts (All Semesters)', status: 'Re-upload Required', submittedOn: '04 Oct 2025', verifiedBy: 'Amit Kumar', fileUrl: 'transcripts_incomplete.pdf', fileSize: '1.8 MB', notes: 'Backside grading scale missing' },
-      { id: 6, category: 'Language', name: 'IELTS / French Language Score', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-      { id: 7, category: 'Statements', name: 'Statement of Purpose (SOP - Final Draft)', status: 'Under Review', submittedOn: '05 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'sop_essec_business.pdf', fileSize: '290 KB' },
-      { id: 8, category: 'Statements', name: 'Letters of Recommendation (LOR - 2 Academic)', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-      { id: 9, category: 'Statements', name: 'Curriculum Vitae (CV - French/EuroPass)', status: 'Under Review', submittedOn: '05 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: 'cv_amit_kumar.pdf', fileSize: '390 KB' },
-      { id: 10, category: 'Financial', name: 'Bank Solvency & Financial Statement', status: 'Re-upload Required', submittedOn: '06 Oct 2025', verifiedBy: 'Amit Kumar', fileUrl: 'bank_letter_rough.pdf', fileSize: '980 KB', notes: 'Bank seal not legible, submit original scan' },
-      { id: 11, category: 'Financial', name: 'Affidavit of Financial Support', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-      { id: 12, category: 'Academic', name: 'Campus France EEF Application Number', status: 'Pending', submittedOn: '-', verifiedBy: '-', fileUrl: '-' },
-    ];
-  }
-
-  // Generic fallback based on stage number
-  const baseApproved = student.stageNumber >= 6 ? 11 : student.stageNumber >= 5 ? 8 : student.stageNumber >= 3 ? 6 : 4;
-  return [
-    { id: 1, category: 'Identity', name: 'Passport (Bio & Address Pages)', status: 'Approved', submittedOn: '02 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: `passport_${student.name.toLowerCase().replace(/\s+/g, '_')}.pdf`, fileSize: '1.8 MB' },
-    { id: 2, category: 'Academic', name: '10th Secondary Marksheet', status: 'Approved', submittedOn: '03 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: '10th_marksheet.pdf', fileSize: '1.2 MB' },
-    { id: 3, category: 'Academic', name: '12th Higher Secondary Marksheet', status: 'Approved', submittedOn: '04 Oct 2025', verifiedBy: 'Sneha Patel', fileUrl: '12th_marksheet.pdf', fileSize: '1.4 MB' },
-    { id: 4, category: 'Academic', name: 'Bachelor Degree Certificate', status: 'Approved', submittedOn: '05 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'bachelor_degree.pdf', fileSize: '2.1 MB' },
-    { id: 5, category: 'Academic', name: 'Semester Transcripts (All Semesters)', status: baseApproved >= 5 ? 'Approved' : 'Under Review', submittedOn: '01 Oct 2025', verifiedBy: 'Amit Kumar', fileUrl: 'transcripts_all.pdf', fileSize: '4.2 MB' },
-    { id: 6, category: 'Language', name: 'IELTS / PTE / TOEFL Score Report', status: baseApproved >= 6 ? 'Approved' : 'Under Review', submittedOn: '06 Oct 2025', verifiedBy: 'Priya Singh', fileUrl: 'ielts_report.pdf', fileSize: '850 KB' },
-    { id: 7, category: 'Statements', name: 'Statement of Purpose (SOP - Final Draft)', status: baseApproved >= 7 ? 'Approved' : 'Under Review', submittedOn: '03 Oct 2025', verifiedBy: 'Sneha Patel', fileUrl: 'sop_final.docx', fileSize: '320 KB' },
-    { id: 8, category: 'Statements', name: 'Letters of Recommendation (LOR - 2 Academic)', status: baseApproved >= 8 ? 'Approved' : 'Pending', submittedOn: baseApproved >= 8 ? '04 Oct 2025' : '-', verifiedBy: baseApproved >= 8 ? 'Rohit Verma' : '-', fileUrl: baseApproved >= 8 ? 'lor_recommendation.pdf' : '-' },
-    { id: 9, category: 'Statements', name: 'Curriculum Vitae (CV - EuroPass/UK Format)', status: baseApproved >= 9 ? 'Approved' : 'Under Review', submittedOn: '02 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: 'cv_europass.pdf', fileSize: '450 KB' },
-    { id: 10, category: 'Financial', name: 'Bank Solvency & Financial Statement', status: baseApproved >= 10 ? 'Approved' : 'Pending', submittedOn: baseApproved >= 10 ? '07 Oct 2025' : '-', verifiedBy: baseApproved >= 10 ? 'Amit Kumar' : '-', fileUrl: baseApproved >= 10 ? 'bank_solvency.pdf' : '-' },
-    { id: 11, category: 'Financial', name: 'Affidavit of Financial Support', status: baseApproved >= 11 ? 'Approved' : 'Pending', submittedOn: baseApproved >= 11 ? '08 Oct 2025' : '-', verifiedBy: baseApproved >= 11 ? 'Priya Singh' : '-', fileUrl: baseApproved >= 11 ? 'affidavit_support.pdf' : '-' },
-    { id: 12, category: 'Academic', name: 'Medium of Instruction (MOI) Certificate', status: 'Approved', submittedOn: '05 Oct 2025', verifiedBy: 'Rohit Verma', fileUrl: 'moi_cert.pdf', fileSize: '920 KB' },
-  ];
+const buildChecklistFromStudent = (student: StudentRecord): DocumentItem[] => {
+  const docs = Array.isArray(student.documents) ? student.documents : [];
+  return docs.map((doc, index) => ({
+    id: index + 1,
+    category: categoryForDocument(doc.name),
+    name: doc.name,
+    status: statusForDocument(doc.status),
+    submittedOn: doc.date && doc.date !== '-' ? doc.date : '-',
+    verifiedBy: '-',
+    fileUrl: '',
+    required: true,
+  }));
 };
 
 export const DocumentationView: React.FC<DocumentationViewProps> = ({
@@ -186,7 +105,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
   onForwardToApplications,
   onNavigate,
 }) => {
-  const studentList = students && students.length > 0 ? students : INITIAL_STUDENTS;
+  const studentList = students || [];
 
   // Navigation State: Directory List vs Student Document Profile
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
@@ -201,10 +120,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
   // Profile Detail States
   const [activeCategory, setActiveCategory] = useState<'All' | 'Academic' | 'Identity' | 'Language' | 'Statements' | 'Financial'>('All');
   const [newNoteInput, setNewNoteInput] = useState('');
-  const [noteList, setNoteList] = useState([
-    { id: 1, text: 'Passport and Degree certificates verified by Priya Singh', time: '10 Oct 2025, 02:30 PM', author: 'Priya Singh' },
-    { id: 2, text: 'Bank solvency proof requires balance stamp from nationalized bank', time: '08 Oct 2025, 11:15 AM', author: 'Rohit Verma' },
-  ]);
+  const [noteList, setNoteList] = useState<Array<{ id: number; text: string; time: string; author: string }>>([]);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [confirmModalData, setConfirmModalData] = useState<{
     isOpen: boolean;
@@ -224,7 +140,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
   // Per-student checklists store with persistence
   const [studentChecklists, setStudentChecklists] = useState<Record<string, DocumentItem[]>>(() => {
     try {
-      const saved = localStorage.getItem('crm-student-documents-v3');
+      const saved = localStorage.getItem('crm-student-documents-v4');
       if (saved) return JSON.parse(saved);
     } catch (e) {
       console.error('Failed to load documents from localStorage', e);
@@ -236,7 +152,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
   const saveChecklists = (updated: Record<string, DocumentItem[]>) => {
     setStudentChecklists(updated);
     try {
-      localStorage.setItem('crm-student-documents-v3', JSON.stringify(updated));
+      localStorage.setItem('crm-student-documents-v4', JSON.stringify(updated));
     } catch (e) {
       console.error('Failed to persist documents to localStorage', e);
     }
@@ -247,8 +163,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
     if (studentChecklists[st.studentId]) {
       return studentChecklists[st.studentId];
     }
-    const defaults = generateDefaultChecklistForStudent(st);
-    return defaults;
+    return buildChecklistFromStudent(st);
   };
 
   // Active student's checklist
@@ -362,7 +277,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
 
   // Format file size
   const formatFileSize = (bytes?: number) => {
-    if (!bytes) return '1.5 MB';
+    if (!bytes) return 'Unknown';
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
@@ -378,7 +293,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
     const docName = uploadDocName.trim() || uploadFile.name;
     const formattedSize = formatFileSize(uploadFile.size);
     const stamp = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-    const verifiedBy = uploadStatus === 'Approved' ? 'Priya Singh' : '-';
+    const verifiedBy = uploadStatus === 'Approved' ? 'Docs Team' : '-';
 
     let updatedList: DocumentItem[] = [];
 
@@ -462,7 +377,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
   const handleVerify = (id: number) => {
     if (!selectedStudent) return;
     const updated = currentChecklist.map((item) =>
-      item.id === id ? { ...item, status: 'Approved' as const, verifiedBy: 'Priya Singh' } : item
+      item.id === id ? { ...item, status: 'Approved' as const, verifiedBy: 'Docs Team' } : item
     );
     updateCurrentStudentChecklist(updated);
     showToast('Document verified and stamped as Approved');
@@ -471,7 +386,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
   const handleRequestReupload = (id: number) => {
     if (!selectedStudent) return;
     const updated = currentChecklist.map((item) =>
-      item.id === id ? { ...item, status: 'Re-upload Required' as const, verifiedBy: 'Priya Singh' } : item
+      item.id === id ? { ...item, status: 'Re-upload Required' as const, verifiedBy: 'Docs Team' } : item
     );
     updateCurrentStudentChecklist(updated);
     showToast('Document marked as Re-upload Required. Student notified via WhatsApp.');
@@ -757,15 +672,6 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                   </button>
                 ))}
               </div>
-
-              {/* View Sample Profile Button */}
-              <button
-                onClick={() => handleOpenStudent(studentList[0])}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[12px] font-semibold transition-colors shadow-xs"
-              >
-                <Eye className="w-3.5 h-3.5" />
-                <span>Open Sample File ({studentList[0]?.name || 'Rahul Sharma'})</span>
-              </button>
             </div>
 
             {/* Search Input & Select Dropdowns */}
@@ -847,7 +753,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                                   src={st.avatar}
                                   alt={st.name}
                                   onError={(e) => {
-                                    (e.target as HTMLImageElement).src = '/avatars/rahul.png';
+                                    (e.target as HTMLElement).style.visibility = 'hidden';
                                   }}
                                   className="w-9 h-9 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
                                 />
@@ -1018,7 +924,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                             src={st.avatar}
                             alt={st.name}
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/avatars/rahul.png';
+                              (e.target as HTMLElement).style.visibility = 'hidden';
                             }}
                             className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
                           />
@@ -1144,7 +1050,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                 src={selectedStudent.avatar}
                 alt={selectedStudent.name}
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/avatars/rahul.png';
+                  (e.target as HTMLElement).style.visibility = 'hidden';
                 }}
                 className="w-14 h-14 aspect-square rounded-full object-cover border-2 border-slate-200 shadow-xs shrink-0"
               />
@@ -1512,7 +1418,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                   </button>
                   <button
                     onClick={() => {
-                      const approved = currentChecklist.map((item) => ({ ...item, status: 'Approved' as const, verifiedBy: 'Priya Singh' }));
+                      const approved = currentChecklist.map((item) => ({ ...item, status: 'Approved' as const, verifiedBy: 'Docs Team' }));
                       updateCurrentStudentChecklist(approved);
                       showToast('All checklist items stamped as Approved');
                     }}
@@ -1918,7 +1824,7 @@ export const DocumentationView: React.FC<DocumentationViewProps> = ({
                     type="button"
                     onClick={() => {
                       handleVerify(previewDoc.id);
-                      setPreviewDoc((prev) => (prev ? { ...prev, status: 'Approved', verifiedBy: 'Priya Singh' } : null));
+                      setPreviewDoc((prev) => (prev ? { ...prev, status: 'Approved', verifiedBy: 'Docs Team' } : null));
                     }}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-xs transition-colors"
                   >

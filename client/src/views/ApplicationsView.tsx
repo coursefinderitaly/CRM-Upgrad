@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowLeft, Eye as EyeIcon, Search, Filter } from 'lucide-react';
-import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
 import { WorkflowStageBanner } from '../components/workflow/WorkflowStageBanner';
 import { PipelineStage, getStageById } from '../context/WorkflowContext';
 import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
@@ -59,106 +59,15 @@ interface ApplicationRow {
   uniType: string;
 }
 
-const INITIAL_APPLICATIONS: ApplicationRow[] = [
-  {
-    id: 'padova',
-    university: 'University of Padova',
-    logo: '/logo_padova.png',
-    country: 'Italy',
-    course: 'MSc Computer Science',
-    deadline: '15 Jan 2026',
-    appFee: '€80',
-    status: 'Form Completed',
-    executiveName: 'Neha Kapoor',
-    executiveAvatar: '/avatars/neha_kapoor.png',
-    lastUpdatedDate: '12 Nov 2025',
-    lastUpdatedTime: '10:30 AM',
-    actionText: 'View',
-    currentStepIndex: 2,
-    qsRank: '#236',
-    uniType: 'Public University',
-  },
-  {
-    id: 'torino',
-    university: 'Politecnico di Torino',
-    logo: '/logo_torino.png',
-    country: 'Italy',
-    course: 'MSc Artificial Intelligence',
-    deadline: '28 Feb 2026',
-    appFee: '€100',
-    status: 'Draft',
-    executiveName: 'Amit Verma',
-    executiveAvatar: '/avatars/amit_verma.png',
-    lastUpdatedDate: '10 Nov 2025',
-    lastUpdatedTime: '04:15 PM',
-    actionText: 'Continue',
-    currentStepIndex: 1,
-    qsRank: '#252',
-    uniType: 'Public University',
-  },
-  {
-    id: 'bologna',
-    university: 'University of Bologna',
-    logo: '/logo_bologna.png',
-    country: 'Italy',
-    course: 'MSc Computer Science',
-    deadline: '30 Jan 2026',
-    appFee: '€80',
-    status: 'Docs Uploaded',
-    executiveName: 'Neha Kapoor',
-    executiveAvatar: '/avatars/neha_kapoor.png',
-    lastUpdatedDate: '11 Nov 2025',
-    lastUpdatedTime: '02:20 PM',
-    actionText: 'Submit',
-    currentStepIndex: 3,
-    qsRank: '#133',
-    uniType: 'Public University',
-  },
-  {
-    id: 'sapienza',
-    university: 'Sapienza University of Rome',
-    logo: '/logo_sapienza.png',
-    country: 'Italy',
-    course: 'MSc Data Science',
-    deadline: '15 Mar 2026',
-    appFee: '€80',
-    status: 'Submitted',
-    executiveName: 'Rohan Shetty',
-    executiveAvatar: '/avatars/rohan_shetty.png',
-    lastUpdatedDate: '09 Nov 2025',
-    lastUpdatedTime: '11:10 AM',
-    actionText: 'Track',
-    currentStepIndex: 4,
-    qsRank: '#134',
-    uniType: 'Public University',
-  },
-  {
-    id: 'milan',
-    university: 'Università di Milano',
-    logo: '/logo_milan.png',
-    country: 'Italy',
-    course: 'MSc Computer Science',
-    deadline: '28 Feb 2026',
-    appFee: '€100',
-    status: 'Under Review',
-    executiveName: 'Amit Verma',
-    executiveAvatar: '/avatars/amit_verma.png',
-    lastUpdatedDate: '08 Nov 2025',
-    lastUpdatedTime: '03:45 PM',
-    actionText: 'Track',
-    currentStepIndex: 5,
-    qsRank: '#276',
-    uniType: 'Public University',
-  },
-];
-
 export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
   students,
   onAdvanceStage,
   onNavigate,
 }) => {
-  // Workflow-sourced students for this stage (falls back to the full directory for the sample UI)
-  const studentList = students && students.length > 0 ? students : INITIAL_STUDENTS;
+  // Workflow-sourced students for this stage
+  const studentList = students || [];
+  // Only show students who actually have application rows in their profile DB.
+  const applicationStudents = studentList.filter((st) => (st.applications?.length || 0) > 0);
 
   // Navigation State: Directory List vs Student Application Profile
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
@@ -211,79 +120,59 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
     window.location.hash = 'applications';
   };
 
-  // Helper for student application summary
+  // Live application summary derived from the student's SQLite rows.
   const getAppSummary = (st: StudentRecord) => {
-    if (st.stageNumber >= 12) return { status: 'Enrolled', count: '4 Applied • Visa Issued', color: 'bg-purple-50 text-purple-700 border-purple-200' };
-    if (st.stageNumber >= 6) return { status: 'Offer Received', count: `${st.applications.length || 3} Applied • ${st.offers.length || 1} Offer`, color: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
-    if (st.stageNumber >= 5) return { status: 'Submitted', count: `${st.applications.length || 2} In Review`, color: 'bg-blue-50 text-[#087cf5] border-blue-200' };
-    return { status: 'In Draft', count: '1 Draft Form', color: 'bg-amber-50 text-amber-700 border-amber-200' };
+    const apps = Array.isArray(st.applications) ? st.applications : [];
+    const offers = Array.isArray(st.offers) ? st.offers : [];
+    if (apps.length === 0) {
+      return { status: 'No Applications', count: '0 Applications', color: 'bg-slate-100 text-slate-600 border-slate-200' };
+    }
+    if (offers.length > 0) {
+      return {
+        status: 'Offer Received',
+        count: `${apps.length} Applied • ${offers.length} Offer`,
+        color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+      };
+    }
+    const inReview = apps.filter((a: any) => /review|submitted|evaluation/i.test(a.status || '')).length;
+    if (inReview > 0) {
+      return { status: 'Submitted', count: `${inReview} In Review`, color: 'bg-blue-50 text-[#087cf5] border-blue-200' };
+    }
+    return { status: 'In Draft', count: `${apps.length} Draft`, color: 'bg-amber-50 text-amber-700 border-amber-200' };
   };
 
-  // Helper for rich multi-portal submission tracker
+  // Build the portal tracker only from real applications on the profile.
   const getStudentPortalApplications = (st: StudentRecord) => {
-    const stage = st.stageNumber;
-    if (st.country === 'Italy') {
-      return {
-        portals: [
-          { name: 'Uni Padova', ref: 'UP-2026-8941', status: 'Submitted', badge: 'bg-blue-50 text-[#087cf5] border-blue-200', fee: '€80 Paid', feeOk: true },
-          { name: 'Uni Bologna', ref: 'UB-2026-1102', status: stage >= 6 ? 'Offer Issued 🎉' : 'Under Review', badge: stage >= 6 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200', fee: '€50 Paid', feeOk: true },
-          { name: 'PoliMi', ref: 'POL-2026-4419', status: 'Under Review', badge: 'bg-purple-50 text-purple-700 border-purple-200', fee: '€100 Paid', feeOk: true },
-        ],
-        feeTotal: '€230 Paid',
-        receiptsStatus: '3/3 Stamped',
-        decisions: { offers: stage >= 6 ? 1 : 0, underReview: stage >= 6 ? 2 : 3, rejections: 0 },
-        nextMilestone: stage >= 6 ? 'Accept Bologna Offer by 28 Feb' : 'Padova Decision: 15 Mar',
-        daysLeft: 14,
-        stageLabel: stage >= 12 ? 'Enrolled' : stage >= 6 ? 'Offer Received' : stage >= 5 ? 'Submitted' : 'Drafting',
-        stageBadge: stage >= 6 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-[#087cf5] border-blue-200',
-      };
-    }
-    if (st.country === 'Germany') {
-      return {
-        portals: [
-          { name: 'Uni-Assist (TUM)', ref: 'UA-DE-5591', status: 'VPD Verified', badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', fee: '€75 Paid', feeOk: true },
-          { name: 'RWTH Direct', ref: 'RWTH-9941', status: 'Submitted', badge: 'bg-blue-50 text-[#087cf5] border-blue-200', fee: 'Free (€0)', feeOk: true },
-        ],
-        feeTotal: '€75 Paid',
-        receiptsStatus: '1/1 Verified',
-        decisions: { offers: 0, underReview: 2, rejections: 0 },
-        nextMilestone: 'TUM Assessment on 25 Mar',
-        daysLeft: 39,
-        stageLabel: 'Under Review',
-        stageBadge: 'bg-blue-50 text-[#087cf5] border-blue-200',
-      };
-    }
-    if (st.country === 'UK') {
-      return {
-        portals: [
-          { name: 'Univ. Manchester', ref: 'UK-MAN-2026', status: stage >= 6 ? 'Conditional Offer' : 'Under Review', badge: stage >= 6 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-[#087cf5] border-blue-200', fee: '£60 Paid', feeOk: true },
-          { name: 'King’s College', ref: 'KCL-8812', status: 'Under Review', badge: 'bg-purple-50 text-purple-700 border-purple-200', fee: '£75 Paid', feeOk: true },
-        ],
-        feeTotal: '£135 Paid',
-        receiptsStatus: '2/2 Stamped',
-        decisions: { offers: stage >= 6 ? 1 : 0, underReview: 1, rejections: 0 },
-        nextMilestone: 'Submit Degree Proof by 15 May',
-        daysLeft: 64,
-        stageLabel: stage >= 6 ? 'Conditional Offer' : 'Submitted',
-        stageBadge: stage >= 6 ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-blue-50 text-[#087cf5] border-blue-200',
-      };
-    }
+    const apps = Array.isArray(st.applications) ? st.applications : [];
+    const offers = Array.isArray(st.offers) ? st.offers : [];
+    const inReview = apps.filter((a: any) => /review|submitted|evaluation/i.test(a.status || '')).length;
+    const rejected = apps.filter((a: any) => /reject/i.test(a.status || '')).length;
     return {
-      portals: [
-        { name: 'Etudes en France', ref: 'EEF-FR-3021', status: 'Submitted', badge: 'bg-blue-50 text-[#087cf5] border-blue-200', fee: '€100 Paid', feeOk: true },
-        { name: 'Paris-Saclay', ref: 'UPS-9102', status: 'Under Review', badge: 'bg-purple-50 text-purple-700 border-purple-200', fee: '€50 Paid', feeOk: true },
-      ],
-      feeTotal: '€150 Paid',
-      receiptsStatus: '2/2 Stamped',
-      decisions: { offers: 0, underReview: 2, rejections: 0 },
-      nextMilestone: 'Campus France Interview: 20 Mar',
-      daysLeft: 22,
-      stageLabel: 'In Evaluation',
-      stageBadge: 'bg-blue-50 text-[#087cf5] border-blue-200',
+      portals: apps.map((app: any) => ({
+        name: app.university || '-',
+        ref: app.id ? String(app.id) : '-',
+        status: app.status || 'Draft',
+        badge: /offer|accept/i.test(app.status || '')
+          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+          : /reject/i.test(app.status || '')
+            ? 'bg-rose-50 text-rose-700 border-rose-200'
+            : 'bg-blue-50 text-[#087cf5] border-blue-200',
+        fee: '-',
+        feeOk: false,
+      })),
+      feeTotal: '-',
+      receiptsStatus: '-',
+      decisions: { offers: offers.length, underReview: inReview, rejections: rejected },
+      nextMilestone: apps[0]?.date && apps[0].date !== '-' ? `Application date: ${apps[0].date}` : '-',
+      daysLeft: 0,
+      stageLabel: apps.length > 0 ? (offers.length > 0 ? 'Offer Received' : 'Submitted') : 'No Applications',
+      stageBadge: apps.length > 0
+        ? 'bg-blue-50 text-[#087cf5] border-blue-200'
+        : 'bg-slate-100 text-slate-600 border-slate-200',
     };
   };
 
-  const dirFilteredStudents = studentList.filter((st) => {
+  const dirFilteredStudents = applicationStudents.filter((st) => {
     const info = getAppSummary(st);
     const matchesSearch =
       st.name.toLowerCase().includes(dirSearchQuery.toLowerCase()) ||
@@ -304,21 +193,78 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
   });
 
   const appCounts = {
-    All: studentList.length,
-    Offers: studentList.filter((st) => getAppSummary(st).status === 'Offer Received' || getAppSummary(st).status === 'Enrolled').length,
-    Submitted: studentList.filter((st) => getAppSummary(st).status === 'Submitted').length,
-    Draft: studentList.filter((st) => getAppSummary(st).status === 'In Draft').length,
+    All: applicationStudents.length,
+    Offers: applicationStudents.filter((st) => getAppSummary(st).status === 'Offer Received' || getAppSummary(st).status === 'Enrolled').length,
+    Submitted: applicationStudents.filter((st) => getAppSummary(st).status === 'Submitted').length,
+    Draft: applicationStudents.filter((st) => getAppSummary(st).status === 'In Draft').length,
   };
-  const [applications, setApplications] = useState<ApplicationRow[]>(INITIAL_APPLICATIONS);
-  const [selectedAppId, setSelectedAppId] = useState<string>('padova');
+  const [selectedAppId, setSelectedAppId] = useState<string>('');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Modals state
   const [showStartAppModal, setShowStartAppModal] = useState(false);
   const [showUploadDocsModal, setShowUploadDocsModal] = useState(false);
 
-  const selectedApp =
-    applications.find((a) => a.id === selectedAppId) || applications[0];
+  const mapApplicationStatus = (status?: string): ApplicationRow['status'] => {
+    const value = (status || '').toLowerCase();
+    if (value.includes('offer') || value.includes('accept')) return 'Offer';
+    if (value.includes('review') || value.includes('evaluation')) return 'Under Review';
+    if (value.includes('submit')) return 'Submitted';
+    if (value.includes('doc')) return 'Docs Uploaded';
+    if (value.includes('form') || value.includes('complete')) return 'Form Completed';
+    return 'Draft';
+  };
+
+  const applications: ApplicationRow[] = (selectedStudent?.applications || []).map((app, index) => {
+    const status = mapApplicationStatus(app.status);
+    const stepMap: Record<ApplicationRow['status'], number> = {
+      Draft: 1,
+      'Form Completed': 2,
+      'Docs Uploaded': 3,
+      Submitted: 4,
+      'Under Review': 5,
+      Offer: 6,
+    };
+    return {
+      id: String(app.id || index + 1),
+      university: app.university,
+      logo: '',
+      country: selectedStudent?.country || '-',
+      course: app.program,
+      deadline: '-',
+      appFee: '-',
+      status,
+      executiveName: selectedStudent?.counsellor || '-',
+      executiveAvatar: '',
+      lastUpdatedDate: app.date || '-',
+      lastUpdatedTime: '',
+      actionText: 'View',
+      currentStepIndex: stepMap[status],
+      qsRank: '-',
+      uniType: '-',
+    };
+  });
+
+  const selectedApp: ApplicationRow =
+    applications.find((app) => app.id === selectedAppId) ||
+    applications[0] || {
+      id: '',
+      university: '-',
+      logo: '',
+      country: '-',
+      course: '-',
+      deadline: '-',
+      appFee: '-',
+      status: 'Draft',
+      executiveName: '-',
+      executiveAvatar: '',
+      lastUpdatedDate: '-',
+      lastUpdatedTime: '',
+      actionText: 'View',
+      currentStepIndex: 1,
+      qsRank: '-',
+      uniType: '-',
+    };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -334,34 +280,22 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
     { num: 6, title: 'Offer' },
   ];
 
-  const [requiredDocs, setRequiredDocs] = useState([
-    { id: 1, name: 'Passport (Bio Page)', status: 'Uploaded' },
-    { id: 2, name: 'Academic Transcripts', status: 'Verified' },
-    { id: 3, name: 'Statement of Purpose (SOP)', status: 'Uploaded' },
-    { id: 4, name: 'Letter of Recommendation (LOR)', status: 'Pending' },
-    { id: 5, name: 'Curriculum Vitae (CV)', status: 'Uploaded' },
-    { id: 6, name: 'IELTS Score Report', status: 'Pending' },
-  ]);
+  const requiredDocs = (selectedStudent?.documents || []).map((doc, index) => ({
+    id: index + 1,
+    name: doc.name,
+    status:
+      doc.status === 'Verified' || doc.status === 'Approved'
+        ? 'Verified'
+        : doc.status === 'Pending'
+          ? 'Pending'
+          : 'Uploaded',
+  }));
 
-  const handleToggleDocStatus = (id: number) => {
-    setRequiredDocs((prev) =>
-      prev.map((doc) => {
-        if (doc.id === id) {
-          const next = doc.status === 'Pending' ? 'Uploaded' : 'Pending';
-          return { ...doc, status: next };
-        }
-        return doc;
-      })
-    );
-  };
-
-  const timelineEvents = [
-    { time: '12 Nov 2025, 10:30 AM', event: 'University form completed', active: true },
-    { time: '11 Nov 2025, 02:20 PM', event: 'SOP uploaded', active: true },
-    { time: '10 Nov 2025, 04:15 PM', event: 'Application started', active: true },
-    { time: '08 Nov 2025, 11:10 AM', event: 'Documents uploaded', active: true },
-    { time: '08 Nov 2025, 10:00 AM', event: 'Waiting for review', active: false },
-  ];
+  const timelineEvents = (selectedStudent?.timeline || []).map((item) => ({
+    time: item.time,
+    event: item.text,
+    active: true,
+  }));
 
     return (
     <div className="p-3.5 pb-16 space-y-3 max-w-[1536px] mx-auto font-sans text-[#101d37] min-h-screen">
@@ -395,7 +329,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                   </span>
                 </div>
                 <p className="text-[11.5px] text-[#64748b] leading-tight mt-0.5">
-                  Track official university submissions: 🏛️ UniPadova • 🏛️ Uni Bologna • 🏛️ PoliMi • 🏛️ Sapienza • Fees & Decision Ledger
+                  Track university submissions, application fees and admission decisions.
                 </p>
               </div>
             </div>
@@ -472,7 +406,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
             <div className="bg-white border border-[#e5edf5] rounded-[8px] p-2.5 shadow-xs col-span-2 sm:col-span-1">
               <span className="text-[10.5px] text-[#64748b] font-medium block">Enrolled / Visa Ready</span>
               <div className="text-[19px] font-bold text-purple-600 mt-0.5">
-                {studentList.filter((s) => s.stageNumber >= 10).length}
+                {applicationStudents.filter((s) => s.stageNumber >= 10).length}
               </div>
               <span className="text-[10px] text-purple-600 font-medium">Deposit confirmed</span>
             </div>
@@ -503,7 +437,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                 ))}
               </div>
 
-              {/* View Mode Switcher & Sample Profile */}
+              {/* View Mode Switcher */}
               <div className="flex items-center gap-2">
                 <div className="flex items-center bg-[#f1f5f9] p-0.5 rounded-[6px] border border-[#e2e8f0]">
                   <button
@@ -527,14 +461,6 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                     <span>Cards</span>
                   </button>
                 </div>
-
-                <button
-                  onClick={() => handleOpenStudent(studentList[0])}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[12px] font-semibold transition-colors shadow-xs"
-                >
-                  <EyeIcon className="w-3.5 h-3.5" />
-                  <span>Sample Applications ({studentList[0]?.name || 'Rahul Sharma'})</span>
-                </button>
               </div>
             </div>
 
@@ -616,7 +542,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                                   src={st.avatar}
                                   alt={st.name}
                                   onError={(e) => {
-                                    (e.target as HTMLImageElement).src = '/avatars/rahul.png';
+                                    (e.target as HTMLElement).style.visibility = 'hidden';
                                   }}
                                   className="w-9 h-9 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
                                 />
@@ -721,17 +647,17 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
               <div className="px-3.5 py-2.5 bg-[#f8fafc] border-t border-[#e5edf5] flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-[#64748b]">
                 <div className="flex items-center gap-2">
                   <span className="font-medium text-[#101d37]">
-                    Showing <span className="font-bold text-[#087cf5]">{dirFilteredStudents.length}</span> of {studentList.length} applicant files
+                    Showing <span className="font-bold text-[#087cf5]">{dirFilteredStudents.length}</span> of {applicationStudents.length} applicant files
                   </span>
                   <span className="hidden sm:inline text-slate-300">|</span>
                   <span className="hidden sm:inline text-[11px] text-slate-500">
-                    Live portal tracking connected to university admission servers
+                    Applications loaded from student profiles
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-[11px] text-emerald-600 font-semibold flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
-                    Portal API active
+                    Student data active
                   </span>
                 </div>
               </div>
@@ -739,7 +665,14 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
           ) : (
             /* Tracker Cards Grid View */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {dirFilteredStudents.map((st) => {
+              {dirFilteredStudents.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-[9px] border border-[#e5edf5]">
+                  <Send className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-700">No applications found</p>
+                  <p className="text-xs text-slate-400 mt-1">Student applications submitted to universities will appear here.</p>
+                </div>
+              ) : (
+                dirFilteredStudents.map((st) => {
                 const appData = getStudentPortalApplications(st);
                 return (
                   <div
@@ -755,7 +688,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                             src={st.avatar}
                             alt={st.name}
                             onError={(e) => {
-                              (e.target as HTMLImageElement).src = '/avatars/rahul.png';
+                              (e.target as HTMLElement).style.visibility = 'hidden';
                             }}
                             className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
                           />
@@ -822,7 +755,8 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                     </div>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           )}
         </div>
@@ -878,7 +812,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                 src={selectedStudent.avatar}
                 alt={selectedStudent.name}
                 onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/avatars/rahul.png';
+                  (e.target as HTMLElement).style.visibility = 'hidden';
                 }}
                 className="w-14 h-14 aspect-square rounded-full object-cover border-2 border-slate-200 shadow-xs shrink-0"
               />
@@ -922,7 +856,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                 <div className="text-[10px] text-[#64748b] font-medium uppercase tracking-wider flex items-center gap-1">
                   <Landmark className="w-3 h-3 text-[#64748b]" /> Selected Universities
                 </div>
-                <div className="font-semibold text-[#101d37] mt-0.5 text-center">4</div>
+                <div className="font-semibold text-[#101d37] mt-0.5 text-center">{applications.length}</div>
               </div>
 
               <div>
@@ -998,14 +932,6 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
             </div>
           </div>
 
-      {/* Toast Notification */}
-      {toastMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-[#087cf5] text-white px-4 py-2.5 rounded-lg shadow-lg text-[13px] font-medium flex items-center gap-2 animate-bounce">
-          <CheckCircle2 className="w-4 h-4" />
-          {toastMessage}
-        </div>
-      )}
-
       {/* Top Breadcrumb & Page Title */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
@@ -1036,7 +962,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
             <div className="text-[11px] text-[#52627a] font-medium leading-tight">
               Ready for Application
             </div>
-            <div className="text-[19px] font-bold text-[#101d37]">3</div>
+            <div className="text-[19px] font-bold text-[#101d37]">{applications.filter((a) => a.status === 'Form Completed').length}</div>
           </div>
         </div>
 
@@ -1047,7 +973,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
           </div>
           <div>
             <div className="text-[11px] text-[#52627a] font-medium leading-tight">In Draft</div>
-            <div className="text-[19px] font-bold text-[#101d37]">2</div>
+            <div className="text-[19px] font-bold text-[#101d37]">{applications.filter((a) => a.status === 'Draft').length}</div>
           </div>
         </div>
 
@@ -1058,7 +984,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
           </div>
           <div>
             <div className="text-[11px] text-[#52627a] font-medium leading-tight">Submitted</div>
-            <div className="text-[19px] font-bold text-[#101d37]">4</div>
+            <div className="text-[19px] font-bold text-[#101d37]">{applications.filter((a) => a.status === 'Submitted').length}</div>
           </div>
         </div>
 
@@ -1069,7 +995,7 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
           </div>
           <div>
             <div className="text-[11px] text-[#52627a] font-medium leading-tight">Under Review</div>
-            <div className="text-[19px] font-bold text-[#101d37]">3</div>
+            <div className="text-[19px] font-bold text-[#101d37]">{applications.filter((a) => a.status === 'Under Review').length}</div>
           </div>
         </div>
       </div>
@@ -1113,11 +1039,17 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                       >
                         <td className="py-2.5 px-3">
                           <div className="flex items-center gap-2.5">
-                            <img
-                              src={app.logo}
-                              alt={app.university}
-                              className="w-6 h-6 object-contain shrink-0"
-                            />
+                            {app.logo ? (
+                              <img
+                                src={app.logo}
+                                alt={app.university}
+                                className="w-6 h-6 object-contain shrink-0"
+                              />
+                            ) : (
+                              <div className="w-6 h-6 rounded bg-slate-100 text-slate-400 flex items-center justify-center shrink-0">
+                                <Landmark className="w-3.5 h-3.5" />
+                              </div>
+                            )}
                             <div>
                               <div className="font-semibold text-[#101d37] hover:text-[#087cf5]">
                                 {app.university}
@@ -1150,11 +1082,17 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
                         </td>
                         <td className="py-2.5 px-2.5">
                           <div className="flex items-center gap-1.5">
-                            <img
-                              src={app.executiveAvatar}
-                              alt={app.executiveName}
-                              className="w-5 h-5 aspect-square rounded-full object-cover shrink-0"
-                            />
+                            {app.executiveAvatar ? (
+                              <img
+                                src={app.executiveAvatar}
+                                alt={app.executiveName}
+                                className="w-5 h-5 aspect-square rounded-full object-cover shrink-0"
+                              />
+                            ) : (
+                              <div className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[8px] font-bold shrink-0">
+                                {app.executiveName.slice(0, 2).toUpperCase()}
+                              </div>
+                            )}
                             <span className="text-[#475569] whitespace-nowrap">
                               {app.executiveName}
                             </span>
@@ -1243,17 +1181,23 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
 
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
-                <img
-                  src={selectedApp.logo}
-                  alt={selectedApp.university}
-                  className="w-8 h-8 object-contain"
-                />
+                {selectedApp.logo ? (
+                  <img
+                    src={selectedApp.logo}
+                    alt={selectedApp.university}
+                    className="w-8 h-8 object-contain"
+                  />
+                ) : (
+                  <div className="w-8 h-8 rounded bg-slate-100 text-slate-400 flex items-center justify-center">
+                    <Landmark className="w-4 h-4" />
+                  </div>
+                )}
                 <div>
                   <div className="text-[13px] font-bold text-[#101d37]">
                     {selectedApp.university}
                   </div>
                   <div className="text-[11px] text-[#64748b]">
-                    {selectedApp.university.includes('Padova') ? 'Padova' : selectedApp.country}, {selectedApp.country}
+                    {selectedApp.country}, {selectedApp.country}
                   </div>
                 </div>
               </div>
@@ -1338,11 +1282,15 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
             </h3>
 
             <div className="space-y-1.5 divide-y divide-[#f8fafc]">
+              {requiredDocs.length === 0 && (
+                <div className="py-4 text-center text-[11.5px] text-slate-400">
+                  No documents uploaded for this student yet.
+                </div>
+              )}
               {requiredDocs.map((doc) => (
                 <div
                   key={doc.id}
-                  onClick={() => handleToggleDocStatus(doc.id)}
-                  className="pt-1.5 flex items-center justify-between text-[11.5px] cursor-pointer hover:bg-slate-50 px-1 rounded-sm"
+                  className="pt-1.5 flex items-center justify-between text-[11.5px] px-1 rounded-sm"
                 >
                   <div className="flex items-center gap-2">
                     <FileText className="w-3.5 h-3.5 text-[#64748b]" />
@@ -1390,6 +1338,11 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
               {/* Vertical timeline line */}
               <div className="absolute left-[13px] top-2 bottom-2 w-0.5 bg-slate-200" />
 
+              {timelineEvents.length === 0 && (
+                <div className="py-4 text-center text-[11.5px] text-slate-400">
+                  No application activity recorded yet.
+                </div>
+              )}
               {timelineEvents.map((ev, idx) => (
                 <div key={idx} className="flex items-start gap-2.5 relative">
                   <div
@@ -1420,19 +1373,18 @@ export const ApplicationsView: React.FC<ApplicationsViewProps> = ({
             </div>
             <div className="space-y-3 text-[12px]">
               <div>
-                <label className="block text-[#64748b] mb-1 font-medium">Select University</label>
-                <select className="w-full px-3 py-1.5 border border-[#cbd5e1] rounded-[6px]">
-                  <option>University of Padova (Italy)</option>
-                  <option>Politecnico di Torino (Italy)</option>
-                  <option>University of Bologna (Italy)</option>
-                  <option>Sapienza University of Rome (Italy)</option>
-                </select>
+                <label className="block text-[#64748b] mb-1 font-medium">University Name</label>
+                <input
+                  type="text"
+                  placeholder="Enter university name"
+                  className="w-full px-3 py-1.5 border border-[#cbd5e1] rounded-[6px]"
+                />
               </div>
               <div>
                 <label className="block text-[#64748b] mb-1 font-medium">Program / Course</label>
                 <input
                   type="text"
-                  defaultValue="MSc Computer Science"
+                  placeholder="Enter program name"
                   className="w-full px-3 py-1.5 border border-[#cbd5e1] rounded-[6px]"
                 />
               </div>

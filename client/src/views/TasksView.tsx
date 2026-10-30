@@ -29,6 +29,12 @@ import {
 } from 'lucide-react';
 import { Task, Lead } from '../types/crm';
 import { CalendarEvent, STORAGE_KEY, getInitialEvents } from './CalendarView';
+import {
+  fetchCalendarEvents,
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+} from '../services/api';
 
 interface TasksViewProps {
   tasks?: Task[];
@@ -62,6 +68,17 @@ export const TasksView: React.FC<TasksViewProps> = ({
       return getInitialEvents();
     }
   });
+
+  // Load calendar tasks from SQLite calendar.db on mount
+  useEffect(() => {
+    fetchCalendarEvents()
+      .then((serverEvents) => {
+        if (serverEvents && serverEvents.length > 0) {
+          setCalendarTasks(serverEvents);
+        }
+      })
+      .catch((err) => console.error('Failed to load events in TasksView:', err));
+  }, []);
 
   // Filters & State
   const [activeTab, setActiveTab] = useState<'all' | 'today' | 'followup' | 'counselling' | 'visa' | 'deadline' | 'completed'>('all');
@@ -157,10 +174,15 @@ export const TasksView: React.FC<TasksViewProps> = ({
 
   // Toggle Task Completed
   const handleToggleComplete = (id: string) => {
+    const match = calendarTasks.find((t) => t.id === id);
+    const nextStatus = match?.status === 'Completed' ? ('Scheduled' as const) : ('Completed' as const);
     const updated = calendarTasks.map((t) =>
-      t.id === id ? { ...t, status: t.status === 'Completed' ? ('Scheduled' as const) : ('Completed' as const) } : t
+      t.id === id ? { ...t, status: nextStatus } : t
     );
     saveEvents(updated);
+    updateCalendarEvent(id, { status: nextStatus }).catch((err) =>
+      console.error('Failed to update task in calendar.db:', err)
+    );
     if (onToggleTask) onToggleTask(id);
   };
 
@@ -169,6 +191,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
     if (window.confirm('Are you sure you want to remove this task?')) {
       const updated = calendarTasks.filter((t) => t.id !== id);
       saveEvents(updated);
+      deleteCalendarEvent(id).catch((err) =>
+        console.error('Failed to delete task from calendar.db:', err)
+      );
     }
   };
 
@@ -198,6 +223,9 @@ export const TasksView: React.FC<TasksViewProps> = ({
     };
 
     saveEvents([newTask, ...calendarTasks]);
+    createCalendarEvent(newTask).catch((err) =>
+      console.error('Failed to persist task to calendar.db:', err)
+    );
     setIsAddModalOpen(false);
 
     // Reset Form

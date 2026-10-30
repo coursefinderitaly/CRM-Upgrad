@@ -229,127 +229,6 @@ export const INITIAL_LEADS: Lead[] = [
     ],
   },
 
-  // 5. Rohit Verma
-  {
-    id: 'lead-5',
-    leadId: 'L2025100205',
-    studentName: 'Rohit Verma',
-    phone: '+91 91234 56789',
-    email: 'rohit.verma@gmail.com',
-    dob: '15 Jul 2000',
-    address: 'Lucknow, Uttar Pradesh',
-    nationality: 'Indian',
-    countryInterest: 'Australia',
-    courseInterest: 'MSc IT',
-    intake: 'July 2026',
-    budget: 'AUD 35,000 – 45,000',
-    universityType: 'Public',
-    preferredCity: 'Melbourne / Sydney',
-    leadSource: 'Justdial',
-    lastActivity: '02 Oct 2025',
-    nextFollowUp: '07 Oct 2025',
-    nextFollowUpTime: '05:00 PM',
-    nextFollowUpTask: 'Prepare proposal and share university shortlist',
-    status: 'Follow-up',
-    avatarUrl: '/avatars/rohit.png',
-    counsellor: {
-      id: 'counsellor-neha',
-      name: 'Neha Sharma',
-      email: 'neha.sharma@studyabroadcrm.com',
-      role: 'Senior Counsellor',
-      avatar: '/avatars/neha.png',
-    },
-    notes: 'Interested in post-study work visa in Australia. 2 years IT work experience.',
-    graduationDegree: 'BCA Information Technology',
-    graduationUniversity: 'Lucknow University',
-    graduationCgpa: '7.9 CGPA',
-    graduationYear: '2022',
-    testType: 'PTE',
-    testOverallScore: '68',
-    currentStage: 'Counselling',
-    isEnrolled: false,
-    isTransferredToDocs: false,
-  },
-
-  // Additional 43 Leads to match the exact 48 leads, country & source distributions
-  ...[
-    // Italy (15 more -> total 16)
-    { name: 'Ananya Deshmukh', country: 'Italy', course: 'MSc International Business', source: 'Google Ads', status: 'Counselling', activity: '05 Oct 2025', followUp: '11 Oct 2025' },
-    { name: 'Kunal Joshi', country: 'Italy', course: 'MSc Mechanical Engineering', source: 'Google Ads', status: 'Counselling', activity: '04 Oct 2025', followUp: '12 Oct 2025' },
-    { name: 'Pooja Iyer', country: 'Italy', course: 'MA Fashion Design', source: 'Instagram', status: 'Enrolled', activity: '03 Oct 2025', followUp: '10 Oct 2025', isEnrolled: true, isTransferredToDocs: false },
-    { name: 'Vikas Rao', country: 'Italy', course: 'MSc Computer Science', source: 'Google Ads', status: 'Transferred', activity: '04 Oct 2025', followUp: '15 Oct 2025', isEnrolled: true, isTransferredToDocs: true },
-    { name: 'Deepika Malhotra', country: 'Italy', course: 'MSc Economics & Finance', source: 'Website', status: 'Counselling', activity: '02 Oct 2025', followUp: '09 Oct 2025' },
-    { name: 'Aditya Kulkarni', country: 'Italy', course: 'MSc Data Engineering', source: 'Google Ads', status: 'Interested', activity: '05 Oct 2025', followUp: '11 Oct 2025' },
-    { name: 'Ritu Mehra', country: 'Italy', course: 'MA Architecture', source: 'Google Ads', status: 'On Hold', activity: '01 Oct 2025', followUp: '18 Oct 2025' },
-    { name: 'Siddharth Jain', country: 'Italy', course: 'MSc Cyber Security', source: 'Website', status: 'Enrolled', activity: '04 Oct 2025', followUp: '14 Oct 2025', isEnrolled: true },
-    { name: 'Tanvi Nair', country: 'Italy', course: 'MSc Biotechnology', source: 'Google Ads', status: 'Counselling', activity: '03 Oct 2025', followUp: '13 Oct 2025' },
-    { name: 'Harsh Vardhan', country: 'Italy', course: 'MSc Robotics', source: 'Justdial', status: 'Follow-up', activity: '02 Oct 2025', followUp: '08 Oct 2025' },
-    { name: 'Simran Kaur', country: 'Italy', course: 'MSc Food Safety & Technology', source: 'Google Ads', status: 'Lost', activity: '28 Sep 2025', followUp: 'None' },
-    { name: 'Gaurav Saxena', country: 'Italy', course: 'MSc Renewable Energy', source: 'Google Ads', status: 'Contacted', activity: '05 Oct 2025', followUp: '12 Oct 2025' },
-    { name: 'Megha Sen', country: 'Italy', course: 'MSc Product Design', source: 'Instagram', status: 'On Hold', activity: '30 Sep 2025', followUp: '20 Oct 2025' },
-    { name: 'Arjun Das', country: 'Italy', course: 'MSc Biomedical Engineering', source: 'Website', status: 'Counselling', activity: '03 Oct 2025', followUp: '11 Oct 2025' },
-    { name: 'Rohan Bhatt', country: 'Italy', course: 'MSc Artificial Intelligence', source: 'Google Ads', status: 'Contacted', activity: '04 Oct 2025', followUp: '10 Oct 2025' },
-
-    // Germany (9 more -> total 10)
-    { name: 'Manish Tiwari', country: 'Germany', course: 'MSc Automotive Systems', source: 'Website', status: 'Counselling', activity: '05 Oct 2025', followUp: '10 Oct 2025' },
-    { name: 'Swati Pandey', country: 'Germany', course: 'MSc Chemical Engineering', source: 'Google Ads', status: 'Enrolled', activity: '04 Oct 2025', followUp: '12 Oct 2025', isEnrolled: true },
-    { name: 'Nikhil Shinde', country: 'Germany', course: 'MSc Embedded Systems', source: 'Website', status: 'Transferred', activity: '03 Oct 2025', followUp: '15 Oct 2025', isEnrolled: true, isTransferredToDocs: true },
-    { name: 'Shruti Agarwal', country: 'Germany', course: 'MSc Management', source: 'Referral', status: 'Counselling', activity: '04 Oct 2025', followUp: '11 Oct 2025' },
-    { name: 'Pranav Roy', country: 'Germany', course: 'MSc Electrical Engineering', source: 'Google Ads', status: 'On Hold', activity: '01 Oct 2025', followUp: '19 Oct 2025' },
-    { name: 'Kavita Menon', country: 'Germany', course: 'MSc Physics', source: 'Website', status: 'Counselling', activity: '02 Oct 2025', followUp: '09 Oct 2025' },
-    { name: 'Varun Chopra', country: 'Germany', course: 'MSc Mechatronics', source: 'Justdial', status: 'Follow-up', activity: '05 Oct 2025', followUp: '13 Oct 2025' },
-    { name: 'Shalini Gupta', country: 'Germany', course: 'MSc Data Analytics', source: 'Google Ads', status: 'Contacted', activity: '04 Oct 2025', followUp: '08 Oct 2025' },
-    { name: 'Akash Yadav', country: 'Germany', course: 'MSc Industrial Engineering', source: 'Website', status: 'Enrolled', activity: '03 Oct 2025', followUp: '14 Oct 2025', isEnrolled: true },
-
-    // Canada (7 more -> total 8)
-    { name: 'Bhavna Rajput', country: 'Canada', course: 'Post Graduate Diploma in AI', source: 'Referral', status: 'Counselling', activity: '05 Oct 2025', followUp: '12 Oct 2025' },
-    { name: 'Karan Mehra', country: 'Canada', course: 'MBA Global Business', source: 'Google Ads', status: 'Enrolled', activity: '04 Oct 2025', followUp: '16 Oct 2025', isEnrolled: true },
-    { name: 'Sanjay Reddy', country: 'Canada', course: 'MSc Cloud Computing', source: 'Website', status: 'Transferred', activity: '02 Oct 2025', followUp: '14 Oct 2025', isEnrolled: true, isTransferredToDocs: true },
-    { name: 'Preeti Sharma', country: 'Canada', course: 'Project Management Diploma', source: 'Referral', status: 'Counselling', activity: '04 Oct 2025', followUp: '11 Oct 2025' },
-    { name: 'Girish Patil', country: 'Canada', course: 'MSc Cybersecurity', source: 'Instagram', status: 'On Hold', activity: '29 Sep 2025', followUp: '22 Oct 2025' },
-    { name: 'Aakanksha Roy', country: 'Canada', course: 'Diploma in Health Informatics', source: 'Website', status: 'Lost', activity: '27 Sep 2025', followUp: 'None' },
-    { name: 'Tarun Sethi', country: 'Canada', course: 'MSc Big Data Analytics', source: 'Google Ads', status: 'Contacted', activity: '05 Oct 2025', followUp: '10 Oct 2025' },
-
-    // UK (5 more -> total 6)
-    { name: 'Divya Nair', country: 'UK', course: 'LLM Corporate Law', source: 'Instagram', status: 'Counselling', activity: '04 Oct 2025', followUp: '11 Oct 2025' },
-    { name: 'Sameer Khan', country: 'UK', course: 'MSc Public Health', source: 'Website', status: 'Enrolled', activity: '03 Oct 2025', followUp: '15 Oct 2025', isEnrolled: true },
-    { name: 'Ishita Kapoor', country: 'UK', course: 'MSc Finance & Banking', source: 'Instagram', status: 'Counselling', activity: '05 Oct 2025', followUp: '12 Oct 2025' },
-    { name: 'Ashish Goel', country: 'UK', course: 'MSc Artificial Intelligence', source: 'Google Ads', status: 'Transferred', activity: '02 Oct 2025', followUp: '14 Oct 2025', isEnrolled: true, isTransferredToDocs: true },
-    { name: 'Pallavi Joshi', country: 'UK', course: 'MA Digital Marketing', source: 'Instagram', status: 'On Hold', activity: '30 Sep 2025', followUp: '21 Oct 2025' },
-
-    // Australia (3 more -> total 4)
-    { name: 'Naveen Kumar', country: 'Australia', course: 'Master of Professional Accounting', source: 'Justdial', status: 'Counselling', activity: '04 Oct 2025', followUp: '10 Oct 2025' },
-    { name: 'Rupali Sharma', country: 'Australia', course: 'Master of Information Technology', source: 'Justdial', status: 'Enrolled', activity: '05 Oct 2025', followUp: '16 Oct 2025', isEnrolled: true },
-    { name: 'Chirag Singhal', country: 'Australia', course: 'Master of Engineering Management', source: 'Website', status: 'Contacted', activity: '03 Oct 2025', followUp: '09 Oct 2025' },
-
-    // Others (4 total)
-    { name: 'Geetika Das', country: 'Ireland', course: 'MSc Pharmaceutical Sciences', source: 'Referral', status: 'Counselling', activity: '05 Oct 2025', followUp: '11 Oct 2025' },
-    { name: 'Abhishek Pillai', country: 'France', course: 'MSc Luxury Management', source: 'Others', status: 'On Hold', activity: '01 Oct 2025', followUp: '18 Oct 2025' },
-    { name: 'Kavita Ghosh', country: 'USA', course: 'MS Computer Science', source: 'Others', status: 'Contacted', activity: '04 Oct 2025', followUp: '13 Oct 2025' },
-    { name: 'Prateek Somani', country: 'New Zealand', course: 'Master of Construction Management', source: 'Google Ads', status: 'Lost', activity: '25 Sep 2025', followUp: 'None' },
-  ].map((item, idx) => {
-    const num = idx + 6;
-    const leadCode = `L202510${num < 10 ? '0' + num : num}`;
-    return {
-      id: `lead-${num}`,
-      leadId: leadCode,
-      studentName: item.name,
-      phone: `+91 9${Math.floor(100000000 + Math.random() * 900000000)}`,
-      email: `${item.name.toLowerCase().replace(/\s+/g, '.')}@gmail.com`,
-      countryInterest: item.country,
-      courseInterest: item.course,
-      leadSource: item.source,
-      lastActivity: item.activity,
-      nextFollowUp: item.followUp,
-      status: item.status,
-      avatarUrl: `/avatars/${['rahul', 'priya', 'amit', 'sneha', 'rohit'][idx % 5]}.png`,
-      isEnrolled: !!item.isEnrolled,
-      isTransferredToDocs: !!item.isTransferredToDocs,
-      enrolledAt: item.isEnrolled ? '2025-10-02' : undefined,
-      transferredAt: item.isTransferredToDocs ? '2025-10-03' : undefined,
-      currentStage: item.isTransferredToDocs ? 'Documentation' : item.isEnrolled ? 'Enrolled' : item.status === 'Counselling' ? 'Counselling' : 'New Lead',
-    };
-  }),
 ];
 
 export const INITIAL_TASKS: Task[] = [
@@ -417,22 +296,6 @@ export const INITIAL_TASKS: Task[] = [
       phone: '+91 99876 54321',
     },
   },
-  {
-    id: 'task-5',
-    title: 'Prepare proposal for Rohit Verma',
-    subtitle: 'Share university list',
-    time: '05:00 PM',
-    dueDate: '10 Oct 2025',
-    dueStatus: 'Upcoming',
-    completed: false,
-    priority: 'Low',
-    leadId: 'lead-5',
-    lead: {
-      id: 'lead-5',
-      studentName: 'Rohit Verma',
-      phone: '+91 91234 56789',
-    },
-  },
 ];
 
 export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
@@ -467,35 +330,31 @@ export const INITIAL_NOTIFICATIONS: NotificationItem[] = [
 
 export const INITIAL_ANALYTICS: AnalyticsData = {
   kpis: {
-    totalLeads: { value: 48, label: 'Total Leads', growth: '↑ 12%' },
-    contacted: { value: 22, label: 'Contacted', growth: '↑ 8%' },
-    counsellingDone: { value: 15, label: 'Counselling Done', growth: '↑ 20%' },
-    enrolled: { value: 8, label: 'Enrolled', growth: '↑ 14%' },
-    transferred: { value: 5, label: 'Transferred to Documentation', growth: '↑ 25%' },
-    applicationInProcess: { value: 3, label: 'Application in Process', growth: '—' },
+    totalLeads: { value: 4, label: 'Total Leads', growth: '↑ 12%' },
+    contacted: { value: 3, label: 'Contacted', growth: '↑ 8%' },
+    counsellingDone: { value: 2, label: 'Counselling Done', growth: '↑ 20%' },
+    enrolled: { value: 1, label: 'Enrolled', growth: '↑ 14%' },
+    transferred: { value: 1, label: 'Transferred to Documentation', growth: '↑ 25%' },
+    applicationInProcess: { value: 1, label: 'Application in Process', growth: '—' },
     offerReceived: { value: 1, label: 'Offer Received', growth: '—' },
   },
   counsellingSummary: [
-    { name: 'Total Leads', count: 48, fill: '#087cf5' },
-    { name: 'Contacted', count: 22, fill: '#10b981' },
-    { name: 'Counselling', count: 15, fill: '#f59e0b' },
-    { name: 'Enrolled', count: 8, fill: '#ec4899' },
-    { name: 'Transferred', count: 5, fill: '#8b5cf6' },
+    { name: 'Total Leads', count: 4, fill: '#087cf5' },
+    { name: 'Contacted', count: 3, fill: '#10b981' },
+    { name: 'Counselling', count: 2, fill: '#f59e0b' },
+    { name: 'Enrolled', count: 1, fill: '#ec4899' },
+    { name: 'Transferred', count: 1, fill: '#8b5cf6' },
   ],
   leadSources: [
-    { name: 'Google Ads', count: 17, percentage: 35, color: '#087cf5' },
-    { name: 'Website', count: 12, percentage: 25, color: '#06b6d4' },
-    { name: 'Instagram', count: 7, percentage: 15, color: '#eab308' },
-    { name: 'Justdial', count: 5, percentage: 10, color: '#f97316' },
-    { name: 'Referral', count: 5, percentage: 10, color: '#ec4899' },
-    { name: 'Others', count: 2, percentage: 4, color: '#94a3b8' },
+    { name: 'Google Ads', count: 1, percentage: 25, color: '#087cf5' },
+    { name: 'Website', count: 1, percentage: 25, color: '#06b6d4' },
+    { name: 'Referral', count: 1, percentage: 25, color: '#ec4899' },
+    { name: 'Instagram', count: 1, percentage: 25, color: '#eab308' },
   ],
   countryInterest: [
-    { country: 'Italy', count: 16, flag: '🇮🇹', color: '#087cf5' },
-    { country: 'Germany', count: 10, flag: '🇩🇪', color: '#10b981' },
-    { country: 'Canada', count: 8, flag: '🇨🇦', color: '#eab308' },
-    { country: 'UK', count: 6, flag: '🇬🇧', color: '#ec4899' },
-    { country: 'Australia', count: 4, flag: '🇦🇺', color: '#a855f7' },
-    { country: 'Others', count: 4, flag: '🌐', color: '#94a3b8' },
+    { country: 'Italy', count: 1, flag: '🇮🇹', color: '#087cf5' },
+    { country: 'Germany', count: 1, flag: '🇩🇪', color: '#10b981' },
+    { country: 'Canada', count: 1, flag: '🇨🇦', color: '#eab308' },
+    { country: 'UK', count: 1, flag: '🇬🇧', color: '#ec4899' },
   ],
 };

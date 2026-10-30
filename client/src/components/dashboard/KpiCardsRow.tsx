@@ -1,11 +1,12 @@
 import React from 'react';
 import {
   Users,
-  FileText,
-  Award,
-  CreditCard,
-  ClipboardCheck,
-  Plane,
+  Phone,
+  MessageSquare,
+  UserCheck,
+  GraduationCap,
+  PauseCircle,
+  UserX,
   ArrowUpRight,
 } from 'lucide-react';
 import { AnalyticsData } from '../../types/crm';
@@ -13,113 +14,142 @@ import { useWorkflow } from '../../context/WorkflowContext';
 
 interface KpiCardsRowProps {
   analytics?: AnalyticsData;
+  tabCounts?: Record<string, number>;
   onKpiClick?: (filter: string) => void;
   onNavigate?: (route: string) => void;
 }
 
 export const KpiCardsRow: React.FC<KpiCardsRowProps> = ({
   analytics,
+  tabCounts,
   onKpiClick,
   onNavigate,
 }) => {
   const { students: workflowStudents } = useWorkflow();
 
-  // Dynamic metrics derived directly from the students workflow database
-  const myStudentsCount = workflowStudents.length || 24;
-  const docsCount =
-    workflowStudents.filter(
-      (s) => s.stageNumber === 2 || (s.documents && s.documents.length > 0)
-    ).length || 18;
-  const offersCount =
-    workflowStudents.filter((s) => s.offers && s.offers.length > 0).length || 15;
-  const preEnrollmentCount =
-    workflowStudents.filter(
-      (s) => s.stageNumber >= 9 || (s.preEnrolment && s.preEnrolment.length > 0)
-    ).length || 8;
-  const dovVisaCount =
-    workflowStudents.filter(
-      (s) => s.stageNumber >= 10 || s.visa?.appointmentDate || s.dov?.status
-    ).length || 8;
+  // Live counts from the lead/profile workflow. tabCounts is the authoritative
+  // server count; workflowStudents is a fallback while the first fetch loads.
+  const statusCount = (status: string) =>
+    workflowStudents.filter((s) => (s.overallStatus || '').toLowerCase() === status.toLowerCase()).length;
+
+  const myStudentsCount =
+    tabCounts?.myLeads ??
+    workflowStudents.filter((s) => (s.overallStatus || '').toLowerCase() !== 'enrolled').length;
+  const contactedCount = tabCounts?.contacted ?? statusCount('Contacted');
+  const counsellingCount = tabCounts?.counselling ?? statusCount('Counselling');
+  const interestedCount = tabCounts?.interested ?? statusCount('Interested');
+  const enrolledCount = tabCounts?.enrolled ?? statusCount('Enrolled');
+  const onHoldCount = tabCounts?.onHold ?? statusCount('On Hold');
+  const dropCount = tabCounts?.drop ?? statusCount('Drop');
 
   const cards = [
     {
       id: 'my-students',
-      route: 'students',
+      route: 'leads',
       value: myStudentsCount,
       label: 'My Students',
-      growth: '↑ 14%',
+      caption: 'Active pipeline',
       bg: 'bg-[#e3effb]',
       hoverBg: 'hover:bg-[#d5e7f9]',
       iconBg: 'bg-[#cfe4f9]',
       iconColor: 'text-[#0284c7]',
       icon: Users,
-      tooltip: 'Open enrolled students directory',
+      tooltip: 'Open My Students',
     },
     {
-      id: 'documentation',
-      route: 'documentation',
-      value: docsCount,
-      label: 'Documentation',
-      growth: '↑ 22%',
-      bg: 'bg-[#def8ef]',
-      hoverBg: 'hover:bg-[#ccf2e4]',
-      iconBg: 'bg-[#c2f2df]',
-      iconColor: 'text-[#16a34a]',
-      icon: FileText,
-      tooltip: 'Open document verification & checklist workspace',
+      id: 'contacted',
+      route: 'my-students-contacted',
+      value: contactedCount,
+      label: 'Contacted',
+      caption: 'Follow-up stage',
+      bg: 'bg-[#e0f2fe]',
+      hoverBg: 'hover:bg-[#cceafd]',
+      iconBg: 'bg-[#c3e8fd]',
+      iconColor: 'text-[#0369a1]',
+      icon: Phone,
+      tooltip: 'Open Contacted students',
     },
     {
-      id: 'offers-letter',
-      route: 'applications',
-      value: offersCount,
-      label: 'Offers Letter',
-      growth: '↑ 28%',
+      id: 'counselling',
+      route: 'my-students-counselling',
+      value: counsellingCount,
+      label: 'Counselling',
+      caption: 'In counselling',
       bg: 'bg-[#fef6e1]',
       hoverBg: 'hover:bg-[#fdedc9]',
       iconBg: 'bg-[#fdeebe]',
       iconColor: 'text-[#ca8a04]',
-      icon: Award,
-      tooltip: 'Open university applications and offer letters',
+      icon: MessageSquare,
+      tooltip: 'Open Counselling students',
     },
     {
-      id: 'pre-enrollment',
-      route: 'pre-enrolment',
-      value: preEnrollmentCount,
-      label: 'Pre-Enrollment',
-      growth: '↑ 18%',
+      id: 'interested',
+      route: 'my-students-interested',
+      value: interestedCount,
+      label: 'Interested',
+      caption: 'Ready to enroll',
       bg: 'bg-[#fde2eb]',
       hoverBg: 'hover:bg-[#fcd3e1]',
       iconBg: 'bg-[#facad7]',
       iconColor: 'text-[#e11d48]',
-      icon: ClipboardCheck,
-      tooltip: 'Open Universitaly & national portal pre-enrollment tracking',
+      icon: UserCheck,
+      tooltip: 'Open Interested students',
     },
     {
-      id: 'dov-visa',
-      route: 'students?filter=Visa',
-      value: dovVisaCount,
-      label: 'DOV Date & Visa',
-      growth: '↑ 15%',
-      bg: 'bg-[#efe6fb]',
-      hoverBg: 'hover:bg-[#e4d4fa]',
-      iconBg: 'bg-[#dfcff7]',
-      iconColor: 'text-[#7c3aed]',
-      icon: Plane,
-      tooltip: 'Open DOV appointments, CIMEA & Visa stage tracking',
+      id: 'enrolled',
+      route: 'students',
+      value: enrolledCount,
+      label: 'Enrolled',
+      caption: 'Enrolled students',
+      bg: 'bg-[#def8ef]',
+      hoverBg: 'hover:bg-[#ccf2e4]',
+      iconBg: 'bg-[#c2f2df]',
+      iconColor: 'text-[#16a34a]',
+      icon: GraduationCap,
+      tooltip: 'Open Enrolled Students',
+    },
+    {
+      id: 'on-hold',
+      route: 'leads',
+      value: onHoldCount,
+      label: 'On Hold',
+      caption: 'Paused follow-up',
+      bg: 'bg-[#f1f5f9]',
+      hoverBg: 'hover:bg-[#e6edf5]',
+      iconBg: 'bg-[#e2e8f0]',
+      iconColor: 'text-[#475569]',
+      icon: PauseCircle,
+      tooltip: 'Open My Students on hold',
+    },
+    {
+      id: 'drop',
+      route: 'leads',
+      value: dropCount,
+      label: 'Drop',
+      caption: 'Not proceeding',
+      bg: 'bg-[#fee2e2]',
+      hoverBg: 'hover:bg-[#fecaca]',
+      iconBg: 'bg-[#fecaca]',
+      iconColor: 'text-[#b91c1c]',
+      icon: UserX,
+      tooltip: 'Open My Students dropped leads',
     },
   ];
 
   const handleCardClick = (card: typeof cards[0]) => {
-    if (onNavigate) {
-      onNavigate(card.route);
-    }
+    // Prefer the portal-specific handler so each portal can route to a screen
+    // it actually owns (Admin has no counsellor status sub-sections).
     if (onKpiClick) {
       onKpiClick(card.id);
+      return;
+    }
+    if (onNavigate) {
+      onNavigate(card.route);
     }
   };
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 mb-3.5">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-2.5 mb-3.5">
       {cards.map((c) => {
         const Icon = c.icon;
         return (
@@ -149,8 +179,8 @@ export const KpiCardsRow: React.FC<KpiCardsRowProps> = ({
               <div className="text-[10.5px] font-bold text-[#334155] leading-tight mt-1 h-[25px] flex items-center">
                 <span className="line-clamp-2">{c.label}</span>
               </div>
-              <div className="text-[10px] font-semibold text-[#16a34a] leading-none mt-0.5">
-                {c.growth}
+              <div className="text-[10px] font-semibold text-[#64748b] leading-none mt-0.5">
+                {c.caption}
               </div>
             </div>
           </button>

@@ -33,7 +33,8 @@ import {
   HelpCircle,
   ExternalLink,
 } from 'lucide-react';
-import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
+import { StudentAvatar } from '../components/common/StudentAvatar';
 import { PipelineStage, getStageById } from '../context/WorkflowContext';
 import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
@@ -170,12 +171,9 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
   onAdvanceStage,
   onNavigate,
 }) => {
-  // Ensure we always have candidates to show (fallback to stage 1 students if prop is empty)
+  // Workflow-sourced candidate list
   const candidateList = useMemo(() => {
-    if (students && students.length > 0) return students;
-    const stage1List = INITIAL_STUDENTS.filter((s) => s.stageNumber === 1);
-    if (stage1List.length > 0) return stage1List;
-    return INITIAL_STUDENTS.slice(0, 5);
+    return students || [];
   }, [students]);
 
   // Selected student for Profile Preview
@@ -622,7 +620,16 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#e2e8f0] text-xs">
-                    {filteredCandidates.map((st) => {
+                    {filteredCandidates.length === 0 ? (
+                      <tr>
+                        <td colSpan={8} className="py-12 text-center text-slate-500">
+                          <GraduationCap className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                          <p className="text-sm font-semibold text-slate-700">No students currently in Counselling stage</p>
+                          <p className="text-xs text-slate-400 mt-1">Students enrolled for counselling will appear here automatically.</p>
+                        </td>
+                      </tr>
+                    ) : (
+                      filteredCandidates.map((st) => {
                       const cgpaVal = parseFloat(st.academic.cgpa) || 7.5;
                       const isCleared = cgpaVal >= 7.8;
                       const hasSessionToday = st.nextFollowUp.toLowerCase().includes('today');
@@ -643,13 +650,10 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
                           {/* Candidate & Contact */}
                           <td className="py-3.5 px-3.5">
                             <div className="flex items-center gap-2.5">
-                              <img
-                                src={st.avatar || '/avatars/rahul.png'}
-                                alt={st.name}
-                                className="w-9 h-9 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
-                                onError={(e) => {
-                                  (e.target as HTMLElement).style.display = 'none';
-                                }}
+                              <StudentAvatar
+                                name={st.name}
+                                src={st.avatar}
+                                className="w-9 h-9 aspect-square rounded-full object-cover border border-slate-200 shrink-0 text-[10px]"
                               />
                               <div>
                                 <div className="font-bold text-[#101d37] group-hover:text-[#087cf5] transition-colors">
@@ -756,8 +760,9 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
                             </div>
                           </td>
                         </tr>
-                      );
-                    })}
+                        );
+                      })
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -769,7 +774,14 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
           {/* ============================================== */}
           {viewMode === 'cards' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
-              {filteredCandidates.map((st) => {
+              {filteredCandidates.length === 0 ? (
+                <div className="col-span-full py-12 text-center text-slate-500 bg-white rounded-[10px] border border-[#e2e8f0]">
+                  <GraduationCap className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-semibold text-slate-700">No students currently in Counselling stage</p>
+                  <p className="text-xs text-slate-400 mt-1">Students enrolled for counselling will appear here automatically.</p>
+                </div>
+              ) : (
+                filteredCandidates.map((st) => {
                 const cgpaVal = parseFloat(st.academic.cgpa) || 7.5;
                 const isCleared = cgpaVal >= 7.8;
 
@@ -792,13 +804,10 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
 
                     {/* Candidate Identity */}
                     <div className="flex items-center gap-2.5">
-                      <img
-                        src={st.avatar || '/avatars/rahul.png'}
-                        alt={st.name}
-                        className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
-                        onError={(e) => {
-                          (e.target as HTMLElement).style.display = 'none';
-                        }}
+                      <StudentAvatar
+                        name={st.name}
+                        src={st.avatar}
+                        className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0 text-[11px]"
                       />
                       <div>
                         <div className="font-bold text-sm text-[#101d37] group-hover:text-[#087cf5] transition-colors">
@@ -877,7 +886,8 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
                     </div>
                   </div>
                 );
-              })}
+              })
+              )}
             </div>
           )}
         </div>
@@ -938,13 +948,10 @@ export const CounsellingView: React.FC<CounsellingViewProps> = ({
           <div className="bg-white p-4 rounded-[10px] border border-[#e2e8f0] shadow-xs">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-start gap-3.5">
-                <img
-                  src={selectedStudent.avatar || '/avatars/rahul.png'}
-                  alt={selectedStudent.name}
-                  className="w-14 h-14 aspect-square rounded-full object-cover border-2 border-slate-200 shadow-xs shrink-0"
-                  onError={(e) => {
-                    (e.target as HTMLElement).style.display = 'none';
-                  }}
+                <StudentAvatar
+                  name={selectedStudent.name}
+                  src={selectedStudent.avatar}
+                  className="w-14 h-14 aspect-square rounded-full object-cover border-2 border-slate-200 shadow-xs shrink-0 text-base"
                 />
                 <div>
                   <div className="flex items-center gap-2.5">

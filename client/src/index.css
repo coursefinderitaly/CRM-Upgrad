@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Instrument+Serif:ital@0;1&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -39,4 +39,185 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* ── Login motion ─────────────────────────────── */
+@keyframes login-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes login-float-a {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, 30px) scale(1.08);
+  }
+}
+
+@keyframes login-float-b {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(-36px, -28px) scale(1.06);
+  }
+}
+
+@keyframes login-shine {
+  from {
+    transform: translateX(-120%) skewX(-18deg);
+  }
+  to {
+    transform: translateX(240%) skewX(-18deg);
+  }
+}
+
+.login-fade-up {
+  animation: login-fade-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-fade-up-1 {
+  animation-delay: 0.06s;
+}
+.login-fade-up-2 {
+  animation-delay: 0.14s;
+}
+.login-fade-up-3 {
+  animation-delay: 0.22s;
+}
+
+.login-blob-a {
+  animation: login-float-a 14s ease-in-out infinite;
+}
+
+.login-blob-b {
+  animation: login-float-b 17s ease-in-out infinite;
+}
+
+.login-btn-shine {
+  animation: login-shine 2.8s ease-in-out infinite;
+}
+
+@keyframes login-slow-zoom {
+  from {
+    transform: scale(1.05);
+  }
+  to {
+    transform: scale(1.14);
+  }
+}
+
+.login-slow-zoom {
+  animation: login-slow-zoom 26s ease-in-out infinite alternate;
+}
+
+@keyframes login-swap-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes login-swap-back {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.login-swap {
+  animation: login-swap-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.login-swap-back {
+  animation: login-swap-back 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes login-twinkle {
+  0%,
+  100% {
+    opacity: 0.12;
+    transform: scale(0.75);
+  }
+  50% {
+    opacity: 0.9;
+    transform: scale(1.2);
+  }
+}
+
+.login-star {
+  animation: login-twinkle var(--tw-dur, 4s) ease-in-out infinite;
+  animation-delay: var(--tw-delay, 0s);
+}
+
+@keyframes login-gradient-pan {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.login-gradient-text {
+  background-size: 220% auto;
+  animation: login-gradient-pan 7s ease-in-out infinite;
+}
+
+@keyframes login-drift {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -22px, 0);
+  }
+}
+
+.login-drift {
+  animation: login-drift 9s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-fade-up,
+  .login-blob-a,
+  .login-blob-b,
+  .login-btn-shine,
+  .login-slow-zoom,
+  .login-swap,
+  .login-swap-back,
+  .login-star,
+  .login-gradient-text,
+  .login-drift {
+    animation: none;
+  }
 }

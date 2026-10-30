@@ -21,17 +21,22 @@ export const CounsellingSummaryChart: React.FC<CounsellingSummaryChartProps> = (
   onViewReports,
   onBarClick,
 }) => {
-  const chartData = data && data.length > 0 ? data : [
-    { name: 'Total Leads', count: 48, fill: '#087cf5' },
-    { name: 'Contacted', count: 22, fill: '#10b981' },
-    { name: 'Counselling', count: 15, fill: '#f59e0b' },
-    { name: 'Enrolled', count: 8, fill: '#ec4899' },
-    { name: 'Transferred', count: 5, fill: '#8b5cf6' },
+  const defaultCategories = [
+    { name: 'Total Leads', count: 0, fill: '#087cf5' },
+    { name: 'Contacted', count: 0, fill: '#10b981' },
+    { name: 'Counselling', count: 0, fill: '#f59e0b' },
+    { name: 'Enrolled', count: 0, fill: '#ec4899' },
+    { name: 'Transferred', count: 0, fill: '#8b5cf6' },
   ];
+
+  const chartData = data && data.length > 0 ? data : defaultCategories;
+  const rawMax = Math.max(...chartData.map((d) => d.count), 0);
+  const maxDomain = rawMax > 0 ? Math.ceil(rawMax * 1.25) : 5;
 
   // Custom label to render value above each bar
   const renderCustomBarLabel = (props: any) => {
     const { x, y, width, value } = props;
+    if (!value || value === 0) return null;
     return (
       <text
         x={x + width / 2}
@@ -82,9 +87,9 @@ export const CounsellingSummaryChart: React.FC<CounsellingSummaryChartProps> = (
               axisLine={false}
               tickLine={false}
               tick={{ fill: '#94a3b8', fontSize: 10.5 }}
-              domain={[0, 48]}
-              ticks={[0, 10, 20, 30, 40]}
-              width={42}
+              domain={[0, maxDomain]}
+              allowDecimals={false}
+              width={36}
             />
             <Tooltip
               cursor={{ fill: 'rgba(8, 124, 245, 0.06)' }}

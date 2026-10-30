@@ -29,7 +29,7 @@ import {
   HelpCircle,
   XCircle,
 } from 'lucide-react';
-import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
 import { WorkflowStageBanner } from '../components/workflow/WorkflowStageBanner';
 import { getStageById } from '../context/WorkflowContext';
 import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
@@ -62,70 +62,46 @@ interface UniversityOfferDetail {
   conditions: Array<{ id: string; label: string; completed: boolean }>;
 }
 
-const getOfferDataForStudent = (student: StudentRecord): UniversityOfferDetail => {
-  const isBologna = student.country === 'Italy' || student.targetUniversity.toLowerCase().includes('bologna');
-  const isGermany = student.country === 'Germany';
-  const isUK = student.country === 'UK' || student.country === 'United Kingdom';
-
-  const defaultUni = isGermany
-    ? 'Technical University of Munich'
-    : isUK
-    ? 'University of Birmingham'
-    : 'University of Bologna';
-
-  const defaultCourse = student.preferredCourse || 'MSc Computer Science & Engineering';
-
-  // Check if student already has mock offer
+const getOfferDataForStudent = (student: StudentRecord): UniversityOfferDetail | null => {
   const rawOffer = student.offers && student.offers.length > 0 ? student.offers[0] : null;
+  if (!rawOffer) return null;
 
-  const isUnconditional = rawOffer?.type === 'Unconditional' || student.stageNumber >= 7;
+  const offerType: UniversityOfferDetail['offerType'] =
+    rawOffer.type === 'Unconditional'
+      ? 'Unconditional'
+      : rawOffer.type === 'Waitlist'
+        ? 'Waitlist'
+        : 'Conditional';
+
+  const rawStatus = (rawOffer.status || '').toLowerCase();
+  const status: UniversityOfferDetail['status'] = rawStatus.includes('confirm')
+    ? 'Admit Confirmed'
+    : rawStatus.includes('deposit')
+      ? 'Deposit Paid'
+      : rawStatus.includes('condition')
+        ? 'Conditions Met'
+        : 'Under Verification';
 
   return {
-    university: rawOffer?.university || defaultUni,
-    country: student.country || 'Italy',
-    course: defaultCourse,
-    intake: student.intake || 'Sept 2026',
-    offerType: isUnconditional ? 'Unconditional' : 'Conditional',
-    offerDate: rawOffer?.date && rawOffer.date !== '-' ? rawOffer.date : '12 Oct 2025',
-    decisionDeadline: '15 Jul 2026',
-    daysRemaining: 45,
-    tuitionFee: isGermany ? '€ 0 (Tuition Free)' : isUK ? '£ 22,500/yr' : '€ 2,800/yr',
-    scholarshipIncluded: isGermany
-      ? 'DAAD Stipend Eligible'
-      : isUK
-      ? '£ 3,000 Dean’s Merit Award'
-      : '€ 1,500 Regional DSU Tuition Waiver',
-    depositAmount: isGermany ? '€ 0' : isUK ? '£ 2,000' : '€ 1,500',
-    depositStatus: student.stageNumber >= 7 ? 'Paid & Verified' : 'Pending Payment',
-    letterReference: `ADM-${student.studentId || 'UNI'}-2026`,
-    status:
-      student.stageNumber >= 7
-        ? 'Deposit Paid'
-        : isUnconditional
-        ? 'Admit Confirmed'
-        : 'Conditions Met',
-    conditions: [
-      {
-        id: 'c1',
-        label: 'Final Bachelor Degree Transcript & Provisional Certificate (Minimum 7.0 CGPA)',
-        completed: true,
-      },
-      {
-        id: 'c2',
-        label: 'English Proficiency Proof (IELTS 6.5 or Official English Medium of Instruction letter)',
-        completed: true,
-      },
-      {
-        id: 'c3',
-        label: `Official Seat Acceptance Deposit (${isGermany ? 'Semester contribution fee' : 'Tuition advance deposit'})`,
-        completed: student.stageNumber >= 7,
-      },
-      {
-        id: 'c4',
-        label: 'Passport scan with at least 18 months validity remaining',
-        completed: true,
-      },
-    ],
+    university: rawOffer.university,
+    country: student.country,
+    course: student.preferredCourse || '-',
+    intake: student.intake || '-',
+    offerType,
+    offerDate: rawOffer.date && rawOffer.date !== '-' ? rawOffer.date : '-',
+    decisionDeadline: '-',
+    daysRemaining: 0,
+    tuitionFee: '-',
+    scholarshipIncluded: '-',
+    depositAmount: '-',
+    depositStatus: 'Pending Payment',
+    letterReference: '-',
+    status,
+    conditions: (rawOffer.conditions || []).filter(Boolean).map((condition, index) => ({
+      id: `c${index + 1}`,
+      label: condition,
+      completed: false,
+    })),
   };
 };
 
@@ -138,7 +114,7 @@ export const OfferLettersView: React.FC<OfferLettersViewProps> = ({
   onOpenEmail,
   onScheduleFollowUp,
 }) => {
-  const studentList = students && students.length > 0 ? students : INITIAL_STUDENTS;
+  const studentList = students || [];
 
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
   const [activeOffer, setActiveOffer] = useState<UniversityOfferDetail | null>(null);
@@ -206,13 +182,15 @@ export const OfferLettersView: React.FC<OfferLettersViewProps> = ({
 
     studentList.forEach((st) => {
       const offer = getOfferDataForStudent(st);
+      if (!offer) return;
       if (offer.offerType === 'Unconditional') unconditional++;
       else conditional++;
       if (offer.depositStatus === 'Paid & Verified') depositPaid++;
     });
 
+    const total = studentList.filter((st) => getOfferDataForStudent(st)).length;
     return {
-      total: studentList.length,
+      total,
       unconditional,
       conditional,
       depositPaid,
@@ -223,6 +201,7 @@ export const OfferLettersView: React.FC<OfferLettersViewProps> = ({
   const filteredStudents = useMemo(() => {
     return studentList.filter((st) => {
       const offer = getOfferDataForStudent(st);
+      if (!offer) return false;
 
       if (tabFilter === 'Unconditional' && offer.offerType !== 'Unconditional') return false;
       if (tabFilter === 'Conditional' && offer.offerType !== 'Conditional') return false;
@@ -376,14 +355,6 @@ export const OfferLettersView: React.FC<OfferLettersViewProps> = ({
                   </button>
                 ))}
               </div>
-
-              <button
-                onClick={() => handleOpenStudent(studentList[0])}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[12px] font-semibold transition-colors shadow-xs"
-              >
-                <Award className="w-3.5 h-3.5 text-emerald-200" />
-                <span>Open Sample Offer Letter</span>
-              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-2 pt-1 border-t border-slate-100">
@@ -455,13 +426,14 @@ export const OfferLettersView: React.FC<OfferLettersViewProps> = ({
                   ) : (
                     filteredStudents.map((st) => {
                       const offer = getOfferDataForStudent(st);
+                      if (!offer) return null;
                       return (
                         <tr key={st.id} className="hover:bg-[#f8fbff] transition-colors group">
                           {/* Student */}
                           <td className="py-2.5 px-3">
                             <div className="flex items-center gap-2.5">
                               <img
-                                src={st.avatar || '/avatars/row_rahul.png'}
+                                src={st.avatar}
                                 alt={st.name}
                                 className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
                                 onError={(e) => {
@@ -607,7 +579,7 @@ export const OfferLettersView: React.FC<OfferLettersViewProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <img
-                  src={selectedStudent.avatar || '/avatars/row_rahul.png'}
+                  src={selectedStudent.avatar}
                   alt={selectedStudent.name}
                   className="w-12 h-12 rounded-full object-cover border-2 border-emerald-500 shadow-xs"
                 />
@@ -737,7 +709,7 @@ export const OfferLettersView: React.FC<OfferLettersViewProps> = ({
                   <div className="p-2.5 rounded-[6px] bg-slate-50 border border-slate-200">
                     <span className="text-[10.5px] text-slate-500 font-medium block">Intake & Academic Term</span>
                     <strong className="text-[#101d37] block mt-0.5">{activeOffer.intake} (Winter/Fall Semester)</strong>
-                    <span className="text-[10.5px] text-slate-600">Classes Commence: 28 September 2026</span>
+                    <span className="text-[10.5px] text-slate-600">Classes Commence: -</span>
                   </div>
 
                   <div className="p-2.5 rounded-[6px] bg-slate-50 border border-slate-200">

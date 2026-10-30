@@ -13,16 +13,17 @@ export const LeadSourceBreakdownWidget: React.FC<LeadSourceBreakdownWidgetProps>
 }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('This Month');
 
-  const data = sources && sources.length > 0 ? sources : [
-    { name: 'Google Ads', percentage: 35, count: 17, color: '#087cf5' },
-    { name: 'Website', percentage: 25, count: 12, color: '#06b6d4' },
-    { name: 'Instagram', percentage: 15, count: 7, color: '#eab308' },
-    { name: 'Justdial', percentage: 10, count: 5, color: '#f97316' },
-    { name: 'Referral', percentage: 10, count: 5, color: '#ec4899' },
-    { name: 'Others', percentage: 5, count: 2, color: '#94a3b8' },
+  const defaultSources = [
+    { name: 'Google Ads', percentage: 0, count: 0, color: '#087cf5' },
+    { name: 'Website', percentage: 0, count: 0, color: '#06b6d4' },
+    { name: 'Instagram', percentage: 0, count: 0, color: '#eab308' },
+    { name: 'Justdial', percentage: 0, count: 0, color: '#f97316' },
+    { name: 'Referral', percentage: 0, count: 0, color: '#ec4899' },
+    { name: 'Others', percentage: 0, count: 0, color: '#94a3b8' },
   ];
 
-  const totalCount = data.reduce((acc, curr) => acc + curr.count, 0) || 48;
+  const data = sources && sources.length > 0 ? sources : defaultSources;
+  const totalCount = data.reduce((acc, curr) => acc + curr.count, 0);
 
   return (
     <div className="bg-white rounded-[10px] border border-[#e5edf5] shadow-crm-card p-4 flex flex-col h-full w-full overflow-hidden">
@@ -45,7 +46,7 @@ export const LeadSourceBreakdownWidget: React.FC<LeadSourceBreakdownWidgetProps>
 
       {/* Doughnut Chart & Legend */}
       <div className="flex items-center gap-3 flex-1 min-h-0">
-        {/* Doughnut Canvas with 48 Leads text in center */}
+        {/* Doughnut Canvas with total leads text in center */}
         <div className="w-[128px] h-[128px] relative shrink-0 mx-auto">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
@@ -53,6 +54,7 @@ export const LeadSourceBreakdownWidget: React.FC<LeadSourceBreakdownWidgetProps>
                 content={({ active, payload }) => {
                   if (active && payload && payload.length) {
                     const d = payload[0].payload;
+                    if (!d.name) return null;
                     return (
                       <div className="bg-white px-2 py-1 rounded shadow-md border border-slate-200 text-xs">
                         <span className="font-semibold">{d.name}</span>: {d.percentage}%
@@ -62,23 +64,37 @@ export const LeadSourceBreakdownWidget: React.FC<LeadSourceBreakdownWidgetProps>
                   return null;
                 }}
               />
-              <Pie
-                data={data}
-                dataKey="percentage"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                innerRadius={38}
-                outerRadius={58}
-                paddingAngle={2}
-                stroke="#ffffff"
-                strokeWidth={2}
-                isAnimationActive={false}
-              >
-                {data.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
+              {totalCount === 0 ? (
+                <Pie
+                  data={[{ value: 1 }]}
+                  dataKey="value"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={38}
+                  outerRadius={58}
+                  stroke="#e2e8f0"
+                  fill="#f1f5f9"
+                  isAnimationActive={false}
+                />
+              ) : (
+                <Pie
+                  data={data}
+                  dataKey="percentage"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={38}
+                  outerRadius={58}
+                  paddingAngle={2}
+                  stroke="#ffffff"
+                  strokeWidth={2}
+                  isAnimationActive={false}
+                >
+                  {data.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+              )}
             </PieChart>
           </ResponsiveContainer>
 

@@ -1,6 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { StudentAvatar } from '../common/StudentAvatar';
 import {
   AlertTriangle,
+  ArrowLeft,
   ArrowRight,
   CheckCircle2,
   X,
@@ -24,6 +27,8 @@ export interface ActionConfirmModalProps {
   confirmLabel?: string;
   cancelLabel?: string;
   variant?: 'primary' | 'success' | 'warning' | 'danger';
+  requireAcknowledgment?: boolean;
+  acknowledgmentText?: string;
 }
 
 export const ActionConfirmModal: React.FC<ActionConfirmModalProps> = ({
@@ -41,7 +46,20 @@ export const ActionConfirmModal: React.FC<ActionConfirmModalProps> = ({
   confirmLabel = 'Yes, Forward to Next Stage',
   cancelLabel = 'Cancel',
   variant = 'primary',
+  requireAcknowledgment = true,
+  acknowledgmentText,
 }) => {
+  const [step, setStep] = useState<1 | 2>(1);
+  const [acknowledged, setAcknowledged] = useState(false);
+
+  // Reset to step 1 every time the modal opens (or the target changes)
+  useEffect(() => {
+    if (isOpen) {
+      setStep(1);
+      setAcknowledged(false);
+    }
+  }, [isOpen, targetStageName, title]);
+
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -91,9 +109,9 @@ export const ActionConfirmModal: React.FC<ActionConfirmModalProps> = ({
 
   const vStyles = getVariantStyles();
 
-  return (
+  const modalContent = (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/45 backdrop-blur-[2px] animate-in fade-in duration-150"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/45 backdrop-blur-[2px] animate-in fade-in duration-150"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -110,7 +128,11 @@ export const ActionConfirmModal: React.FC<ActionConfirmModalProps> = ({
                 {title}
               </h3>
               <p className="text-[11px] text-[#64748b] leading-tight mt-0.5">
-                Confirmation required to prevent accidental updates
+                {requireAcknowledgment
+                  ? step === 1
+                    ? 'Step 1 of 2 — review the change'
+                    : 'Step 2 of 2 — final confirmation'
+                  : 'Confirmation required to prevent accidental updates'}
               </p>
             </div>
           </div>
@@ -129,13 +151,10 @@ export const ActionConfirmModal: React.FC<ActionConfirmModalProps> = ({
           {/* Student Mini Badge */}
           {studentName && (
             <div className="flex items-center gap-3 p-2.5 rounded-[8px] bg-slate-50 border border-slate-200">
-              <img
-                src={studentAvatar || '/avatars/row_rahul.png'}
-                alt={studentName}
-                className="w-9 h-9 rounded-full object-cover border border-slate-300 shrink-0"
-                onError={(e) => {
-                  (e.target as HTMLElement).style.display = 'none';
-                }}
+              <StudentAvatar
+                name={studentName}
+                src={studentAvatar}
+                className="w-9 h-9 rounded-full object-cover border border-slate-300 shrink-0 text-[10px]"
               />
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
@@ -185,30 +204,92 @@ export const ActionConfirmModal: React.FC<ActionConfirmModalProps> = ({
             <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
             <span>You can review or update this student's records at any time.</span>
           </div>
+          {/* Step 2 checkbox — only when double confirmation is required */}
+          {requireAcknowledgment && step === 2 && (
+            <label className="flex items-start gap-2.5 p-3 rounded-[8px] bg-slate-50 border border-slate-300 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={acknowledged}
+                onChange={(e) => setAcknowledged(e.target.checked)}
+                className="w-4 h-4 mt-0.5 accent-[#087cf5] shrink-0"
+              />
+              <span className="text-[12px] text-[#101d37] leading-snug">
+                {acknowledgmentText ||
+                  (currentStageName && targetStageName
+                    ? `I confirm moving ${studentName || 'this student'} from "${currentStageName}" to "${targetStageName}". I understand this updates the lifecycle stage across all counselor records.`
+                    : 'I understand and confirm this change.')}
+              </span>
+            </label>
+          )}
         </div>
 
         {/* Footer Actions */}
-        <div className="px-5 py-3.5 bg-slate-50 border-t border-[#f1f5f9] flex items-center justify-end gap-2.5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-3.5 py-2 rounded-[6px] border border-[#cbd5e1] hover:bg-white text-slate-700 font-semibold text-[12px] transition-colors shadow-2xs"
-          >
-            {cancelLabel}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
-            className={`px-4 py-2 rounded-[6px] font-bold text-[12px] shadow-xs transition-colors flex items-center gap-1.5 ${vStyles.confirmBtn}`}
-          >
-            <span>{confirmLabel}</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </button>
-        </div>
+        {requireAcknowledgment && step === 1 ? (
+          <div className="px-5 py-3.5 bg-slate-50 border-t border-[#f1f5f9] flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3.5 py-2 rounded-[6px] border border-[#cbd5e1] hover:bg-white text-slate-700 font-semibold text-[12px] transition-colors shadow-2xs"
+            >
+              {cancelLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep(2)}
+              className={`px-4 py-2 rounded-[6px] font-bold text-[12px] shadow-xs transition-colors flex items-center gap-1.5 ${vStyles.confirmBtn}`}
+            >
+              <span>Continue</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : requireAcknowledgment && step === 2 ? (
+          <div className="px-5 py-3.5 bg-slate-50 border-t border-[#f1f5f9] flex items-center justify-between gap-2.5">
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="px-3.5 py-2 rounded-[6px] border border-[#cbd5e1] hover:bg-white text-slate-700 font-semibold text-[12px] transition-colors shadow-2xs flex items-center gap-1.5"
+            >
+              <ArrowLeft className="w-3.5 h-3.5" />
+              Back
+            </button>
+            <button
+              type="button"
+              disabled={!acknowledged}
+              onClick={() => {
+                onConfirm();
+                onClose();
+              }}
+              className={`px-4 py-2 rounded-[6px] font-bold text-[12px] shadow-xs transition-colors flex items-center gap-1.5 ${vStyles.confirmBtn} disabled:opacity-40 disabled:cursor-not-allowed`}
+            >
+              <span>{confirmLabel}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ) : (
+          <div className="px-5 py-3.5 bg-slate-50 border-t border-[#f1f5f9] flex items-center justify-end gap-2.5">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-3.5 py-2 rounded-[6px] border border-[#cbd5e1] hover:bg-white text-slate-700 font-semibold text-[12px] transition-colors shadow-2xs"
+            >
+              {cancelLabel}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                onConfirm();
+                onClose();
+              }}
+              className={`px-4 py-2 rounded-[6px] font-bold text-[12px] shadow-xs transition-colors flex items-center gap-1.5 ${vStyles.confirmBtn}`}
+            >
+              <span>{confirmLabel}</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 };

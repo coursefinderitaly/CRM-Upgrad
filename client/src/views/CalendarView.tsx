@@ -28,7 +28,12 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import { Lead } from '../types/crm';
-import { INITIAL_LEADS } from '../services/mockData';
+import {
+  fetchCalendarEvents,
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+} from '../services/api';
 
 export interface CalendarEvent {
   id: string;
@@ -345,7 +350,7 @@ interface CalendarViewProps {
 }
 
 export const CalendarView: React.FC<CalendarViewProps> = ({
-  leads = INITIAL_LEADS,
+  leads = [],
   onNavigate,
   onOpenWhatsApp,
   onOpenPhone,
@@ -378,6 +383,17 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     }
     return getInitialEvents();
   });
+
+  // Load initial events from SQLite backend (calendar.db)
+  useEffect(() => {
+    fetchCalendarEvents()
+      .then((serverEvents) => {
+        if (serverEvents && serverEvents.length > 0) {
+          setEvents(serverEvents);
+        }
+      })
+      .catch((err) => console.error('Failed to load events from calendar.db:', err));
+  }, []);
 
   const saveEvents = (updated: CalendarEvent[]) => {
     setEvents(updated);
@@ -453,6 +469,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
 
     const updated = [newEvt, ...events];
     saveEvents(updated);
+    createCalendarEvent(newEvt).catch((err) => console.error('Error persisting event to calendar.db:', err));
     setIsAddModalOpen(false);
     showToast(`Event "${newEvt.title}" scheduled successfully for ${newEvt.date}!`);
   };
@@ -461,19 +478,25 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     const match = events.find((e) => e.id === eventId);
     const updated = events.filter((e) => e.id !== eventId);
     saveEvents(updated);
+    deleteCalendarEvent(eventId).catch((err) => console.error('Error deleting event from calendar.db:', err));
     setSelectedEvent(null);
     showToast(`Event "${match?.title || 'Meeting'}" has been removed.`);
   };
 
   const handleToggleComplete = (eventId: string) => {
+    const match = events.find((e) => e.id === eventId);
+    const nextStatus = match?.status === 'Completed' ? 'Scheduled' : 'Completed';
     const updated = events.map((e) =>
       e.id === eventId
-        ? { ...e, status: (e.status === 'Completed' ? 'Scheduled' : 'Completed') as any }
+        ? { ...e, status: nextStatus as any }
         : e
     );
     saveEvents(updated);
+    updateCalendarEvent(eventId, { status: nextStatus }).catch((err) =>
+      console.error('Error updating event in calendar.db:', err)
+    );
     if (selectedEvent && selectedEvent.id === eventId) {
-      setSelectedEvent((prev) => (prev ? { ...prev, status: prev.status === 'Completed' ? 'Scheduled' : 'Completed' } : null));
+      setSelectedEvent((prev) => (prev ? { ...prev, status: nextStatus as any } : null));
     }
     showToast('Event status updated.');
   };

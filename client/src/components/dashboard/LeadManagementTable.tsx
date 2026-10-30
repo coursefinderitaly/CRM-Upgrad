@@ -12,8 +12,10 @@ import {
   FileText,
   Clock,
   ArrowUpDown,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Lead } from '../../types/crm';
+import { StudentAvatar } from '../common/StudentAvatar';
 
 interface LeadManagementTableProps {
   leads: Lead[];
@@ -59,12 +61,13 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
   const [sourceFilter, setSourceFilter] = useState<string>('all');
 
   const tabs = [
-    { id: 'My Leads', label: 'My Leads', count: tabCounts.myLeads ?? 48 },
-    { id: 'Counselling', label: 'Counselling', count: tabCounts.counselling ?? 15 },
-    { id: 'Enrolled', label: 'Enrolled', count: tabCounts.enrolled ?? 8 },
-    { id: 'Transferred', label: 'Transferred', count: tabCounts.transferred ?? 5 },
-    { id: 'On Hold', label: 'On Hold', count: tabCounts.onHold ?? 6 },
-    { id: 'Lost', label: 'Lost', count: tabCounts.lost ?? 3 },
+    { id: 'My Leads', label: 'My Leads', count: tabCounts.myLeads ?? leads.length },
+    { id: 'Counselling', label: 'Counselling', count: tabCounts.counselling ?? leads.filter((l) => l.status === 'Counselling').length },
+    { id: 'Enrolled', label: 'Enrolled', count: tabCounts.enrolled ?? leads.filter((l) => l.status === 'Enrolled' || l.isEnrolled).length },
+    { id: 'Transferred', label: 'Transferred', count: tabCounts.transferred ?? leads.filter((l) => l.isTransferredToDocs).length },
+    { id: 'On Hold', label: 'On Hold', count: tabCounts.onHold ?? leads.filter((l) => l.status === 'On Hold').length },
+    { id: 'Drop', label: 'Drop', count: tabCounts.drop ?? leads.filter((l) => l.status === 'Drop').length },
+    { id: 'Lost', label: 'Lost', count: tabCounts.lost ?? leads.filter((l) => l.status === 'Lost').length },
   ];
 
   // Country Flags map
@@ -125,6 +128,12 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
             On Hold
           </span>
         );
+      case 'Drop':
+        return (
+          <span className="inline-block px-1.5 py-0.5 rounded-[4px] bg-[#fee2e2] text-[#b91c1c] text-[10px] font-medium border border-[#fecaca]/50">
+            Drop
+          </span>
+        );
       case 'Lost':
         return (
           <span className="inline-block px-1.5 py-0.5 rounded-[4px] bg-[#fee2e2] text-[#b91c1c] text-[10px] font-medium border border-[#fecaca]/50">
@@ -166,7 +175,7 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
   return (
     <div className="bg-white rounded-[8px] border border-[#e5edf5] shadow-crm-card mb-3.5">
       {/* Top Header / Tabs & Controls Row */}
-      <div className="px-3 py-2 border-b border-[#e5edf5] flex items-center gap-2 overflow-x-auto scrollbar-none">
+      <div className="px-3 py-2 border-b border-[#e5edf5] flex flex-wrap items-center gap-2">
         {/* Tabs */}
         <div className="flex items-center gap-1.5 shrink-0">
           {tabs.map((t) => {
@@ -199,29 +208,8 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
         {/* Divider right after 'Lost' */}
         <div className="h-4 w-[1px] bg-slate-200 mx-0.5 shrink-0" />
 
-        {/* View Controls & Filter - shifted to upper line directly after 'Lost' */}
+        {/* Filter Control */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            onClick={() => onViewModeChange('table')}
-            className={`px-2.5 py-1 rounded-[6px] text-[12px] font-medium transition-colors whitespace-nowrap shrink-0 ${
-              viewMode === 'table'
-                ? 'bg-[#087cf5] text-white font-semibold shadow-xs'
-                : 'bg-white text-[#52627a] border border-[#e2e8f0] hover:bg-slate-50'
-            }`}
-          >
-            Table View
-          </button>
-          <button
-            onClick={() => onViewModeChange('kanban')}
-            className={`px-2.5 py-1 rounded-[6px] text-[12px] font-medium transition-colors whitespace-nowrap shrink-0 ${
-              viewMode === 'kanban'
-                ? 'bg-[#087cf5] text-white font-semibold shadow-xs'
-                : 'bg-white text-[#52627a] border border-[#e2e8f0] hover:bg-slate-50'
-            }`}
-          >
-            Kanban View
-          </button>
-
           <div className="relative">
             <button
               onClick={() => setShowFilterDropdown(!showFilterDropdown)}
@@ -275,12 +263,20 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
               </div>
             )}
           </div>
+
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('open-meta-sheet-modal'))}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-[6px] text-[12px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-2xs"
+            title="Import and sync Meta ad leads from Google Sheets"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+            <span>Meta Ads Sheet</span>
+          </button>
         </div>
       </div>
 
       {/* Main Content: Table View */}
-      {viewMode === 'table' ? (
-        <div className="overflow-y-auto max-h-[360px]">
+      <div className="overflow-y-auto max-h-[360px]">
           <table className="w-full table-fixed text-left border-collapse">
             <colgroup>
               <col className="w-[30px]" />
@@ -295,7 +291,7 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
               <col className="w-[108px]" />
             </colgroup>
             <thead className="sticky top-0 z-10">
-              <tr className="bg-[#f8fafc] border-b border-[#e5edf5] text-[10px] font-bold text-[#52627a] uppercase tracking-wide whitespace-nowrap">
+              <tr className="bg-[#f8fafc] border-b border-[#e5edf5] text-[10px] font-bold text-[#52627a] uppercase tracking-wide leading-tight">
                 <th className="px-1.5 py-1.5 text-center">
                   <input
                     type="checkbox"
@@ -306,11 +302,11 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                 </th>
                 <th className="px-1 py-1.5 text-center text-[#8496b0]">#</th>
                 <th className="px-1.5 py-1.5">Student Name</th>
-                <th className="px-1.5 py-1.5">Country Interest</th>
-                <th className="px-1.5 py-1.5">Course Interest</th>
-                <th className="px-1.5 py-1.5">Lead Source</th>
+                <th className="px-1.5 py-1.5">Country</th>
+                <th className="px-1.5 py-1.5">Course</th>
+                <th className="px-1.5 py-1.5">Source</th>
                 <th className="px-1.5 py-1.5">Last Activity</th>
-                <th className="px-1.5 py-1.5">Next Follow-up</th>
+                <th className="px-1.5 py-1.5">Follow-up</th>
                 <th className="px-1.5 py-1.5">Status</th>
                 <th className="px-1.5 py-1.5 text-center">Actions</th>
               </tr>
@@ -349,25 +345,13 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                     {/* Student Name & Avatar & Phone */}
                     <td className="px-1.5 py-1.5">
                       <div className="flex items-center gap-1.5 min-w-0">
-                        <img
-                          src={
-                            lead.studentName === 'Rahul Sharma'
-                              ? '/avatars/row_rahul.png'
-                              : lead.studentName === 'Priya Singh'
-                              ? '/avatars/priya.png'
-                              : lead.studentName === 'Amit Kumar'
-                              ? '/avatars/amit.png'
-                              : lead.studentName === 'Sneha Patel'
-                              ? '/avatars/sneha.png'
-                              : lead.studentName === 'Rohit Verma'
-                              ? '/avatars/rohit.png'
-                              : lead.avatarUrl || '/avatars/row_rahul.png'
-                          }
-                          alt={lead.studentName}
-                          className="w-5 h-5 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
+                        <StudentAvatar
+                          name={lead.studentName}
+                          src={lead.avatarUrl}
+                          className="w-5 h-5 aspect-square rounded-full object-cover border border-slate-200 shrink-0 text-[7px]"
                         />
                         <div className="min-w-0">
-                          <div className="font-semibold text-[#101d37] leading-tight truncate">
+                          <div className="font-semibold text-[#101d37] leading-tight truncate" title={lead.studentName}>
                             {lead.studentName}
                           </div>
                           <div className="text-[10px] text-[#64748b] leading-tight mt-0.5 truncate">
@@ -386,12 +370,12 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
                     </td>
 
                     {/* Course Interest */}
-                    <td className="px-1.5 py-1.5 text-[#334155] truncate">
+                    <td className="px-1.5 py-1.5 text-[#334155] truncate" title={lead.courseInterest}>
                       {lead.courseInterest}
                     </td>
 
                     {/* Lead Source */}
-                    <td className="px-1.5 py-1.5 text-[#52627a] truncate">
+                    <td className="px-1.5 py-1.5 text-[#52627a] truncate" title={lead.leadSource}>
                       {lead.leadSource}
                     </td>
 
@@ -516,85 +500,6 @@ export const LeadManagementTable: React.FC<LeadManagementTableProps> = ({
             </tbody>
           </table>
         </div>
-      ) : (
-        /* Kanban Board View */
-        <div className="p-3 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 overflow-x-auto min-h-[340px]">
-          {['New Lead', 'Counselling', 'Enrolled', 'On Hold'].map((colStage) => {
-            const colLeads = leads.filter((l) => l.status === colStage);
-            return (
-              <div
-                key={colStage}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.classList.add('bg-blue-50/50');
-                }}
-                onDragLeave={(e) => {
-                  e.currentTarget.classList.remove('bg-blue-50/50');
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  e.currentTarget.classList.remove('bg-blue-50/50');
-                  const leadId = e.dataTransfer.getData('text/plain');
-                  if (leadId && onUpdateStatus) {
-                    onUpdateStatus(leadId, colStage);
-                  }
-                }}
-                className="bg-[#f8fafc] rounded-lg p-2.5 border border-[#e2e8f0] flex flex-col transition-colors"
-              >
-                <div className="flex items-center justify-between pb-2 mb-2 border-b border-slate-200">
-                  <span className="text-[12px] font-bold text-[#101d37]">{colStage}</span>
-                  <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-slate-200 text-slate-700">
-                    {colLeads.length}
-                  </span>
-                </div>
-                <div className="space-y-2 flex-1">
-                  {colLeads.map((item) => (
-                    <div
-                      key={item.id}
-                      draggable={true}
-                      onDragStart={(e) => {
-                        e.dataTransfer.setData('text/plain', item.id);
-                      }}
-                      onClick={() => onSelectLead(item)}
-                      className="bg-white p-2.5 rounded-md border border-[#e5edf5] shadow-xs hover:border-[#087cf5] cursor-grab active:cursor-grabbing transition-shadow hover:shadow-sm"
-                    >
-                      <div className="font-bold text-[12px] text-[#101d37]">{item.studentName}</div>
-                      <div className="text-[10.5px] text-[#52627a] mt-0.5">
-                        {item.countryInterest} • {item.courseInterest}
-                      </div>
-                      <div className="flex items-center justify-between mt-2 pt-1 border-t border-slate-100">
-                        <span className="text-[10px] text-red-500 font-medium">
-                          {item.nextFollowUp}
-                        </span>
-                        {onUpdateStatus && (
-                          <select
-                            value={item.status}
-                            onChange={(e) => onUpdateStatus(item.id, e.target.value)}
-                            onClick={(e) => e.stopPropagation()}
-                            className="text-[10px] border border-slate-200 rounded px-1 py-0.5 bg-slate-50 cursor-pointer"
-                          >
-                            <option value="New Lead">New Lead</option>
-                            <option value="Counselling">Counselling</option>
-                            <option value="Enrolled">Enrolled</option>
-                            <option value="On Hold">On Hold</option>
-                            <option value="Lost">Lost</option>
-                          </select>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {colLeads.length === 0 && (
-                    <div className="h-20 border-2 border-dashed border-slate-200 rounded-md flex items-center justify-center text-[11px] text-slate-400">
-                      Drop lead here
-                    </div>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-      )}
     </div>
   );
 };

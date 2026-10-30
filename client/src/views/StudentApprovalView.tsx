@@ -33,7 +33,9 @@ import {
   MapPin,
   Landmark,
 } from 'lucide-react';
-import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
+import { countryFlag } from '../utils/country';
+import { StudentAvatar } from '../components/common/StudentAvatar';
 import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
 
 interface StudentApprovalViewProps {
@@ -386,7 +388,7 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
   onOpenEmail,
   onScheduleFollowUp,
 }) => {
-  const studentList = students && students.length > 0 ? students : INITIAL_STUDENTS;
+  const studentList = students || [];
 
   // Selected student for Mode 2 (Approval Workspace Window)
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
@@ -795,13 +797,10 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
                           {/* 2. Student & Profile */}
                           <td className="py-3.5 px-3 min-w-[270px] align-middle">
                             <div className="flex items-center gap-3">
-                              <img
+                              <StudentAvatar
+                                name={st.name}
                                 src={st.avatar}
-                                alt={st.name}
-                                onError={(e) => {
-                                  (e.target as HTMLImageElement).src = '/avatars/rahul.png';
-                                }}
-                                className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
+                                className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs text-[11px]"
                               />
                               <div className="min-w-0">
                                 <div className="font-bold text-[#101d37] group-hover:text-[#087cf5] transition-colors text-[13px] leading-snug whitespace-nowrap">
@@ -825,7 +824,7 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
                           <td className="py-3.5 px-3 min-w-[210px] align-middle">
                             <div className="font-semibold text-[#101d37] text-[12px] flex items-center gap-1.5 whitespace-nowrap">
                               <span className="text-sm">
-                                {st.country === 'Italy' ? '🇮🇹' : st.country === 'Germany' ? '🇩🇪' : st.country === 'UK' ? '🇬🇧' : st.country === 'France' ? '🇫🇷' : '🇮🇪'}
+                                {countryFlag(st.country)}
                               </span>
                               <span>{st.country}</span>
                               <span className="text-[10.5px] text-slate-400 font-normal">({st.intake})</span>
@@ -998,13 +997,10 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
           <div className="bg-white rounded-[9px] border border-[#e5edf5] p-3.5 shadow-xs">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3.5">
-                <img
+                <StudentAvatar
+                  name={selectedStudent.name}
                   src={selectedStudent.avatar}
-                  alt={selectedStudent.name}
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/avatars/rahul.png';
-                  }}
-                  className="w-12 h-12 aspect-square rounded-full object-cover border-2 border-blue-500/30 shadow-xs"
+                  className="w-12 h-12 aspect-square rounded-full object-cover border-2 border-blue-500/30 shadow-xs text-sm"
                 />
                 <div>
                   <div className="flex items-center gap-2">
@@ -1030,7 +1026,7 @@ export const StudentApprovalView: React.FC<StudentApprovalViewProps> = ({
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#64748b] mt-1">
                     <span>
-                      {selectedStudent.country === 'Italy' ? '🇮🇹' : selectedStudent.country === 'Germany' ? '🇩🇪' : selectedStudent.country === 'UK' ? '🇬🇧' : '🇪🇺'}{' '}
+                      {countryFlag(selectedStudent.country)}{' '}
                       <strong className="text-slate-800">{selectedStudent.country}</strong> ({selectedStudent.intake})
                     </span>
                     <span>•</span>

@@ -25,6 +25,7 @@ interface DashboardViewProps {
   onOpenWhatsApp: (lead: Lead) => void;
   onOpenEmail: (lead: Lead) => void;
   onScheduleFollowUp: (lead: Lead) => void;
+  onBookCounsellingSession?: (lead: Lead) => void;
   onEditLead: (lead: Lead) => void;
   onEnrollLead: (lead: Lead) => void;
   onTransferDocs: (lead: Lead) => void;
@@ -56,6 +57,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenWhatsApp,
   onOpenEmail,
   onScheduleFollowUp,
+  onBookCounsellingSession,
   onEditLead,
   onEnrollLead,
   onTransferDocs,
@@ -72,7 +74,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   return (
     <div className="p-3 space-y-2.5 max-w-[1536px] mx-auto select-none">
       {/* 1. Seven KPI Cards Row */}
-      <KpiCardsRow analytics={analytics} onKpiClick={onKpiClick} onNavigate={onNavigate} />
+      <KpiCardsRow analytics={analytics} tabCounts={tabCounts} onKpiClick={onKpiClick} onNavigate={onNavigate} />
 
       {/* 2. Main Dashboard Layout (Left ~72% / Right ~28%) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-2.5 items-start">
@@ -148,10 +150,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             onEditLead={onEditLead}
             onEnrollLead={onEnrollLead}
             onScheduleFollowUp={onScheduleFollowUp}
+            onBookCounsellingSession={onBookCounsellingSession}
             onOpenEmail={onOpenEmail}
             onOpenWhatsApp={onOpenWhatsApp}
             onTransferDocs={onTransferDocs}
             onAddNote={onAddNote}
+            onUpdateStatus={onUpdateStatus}
           />
         </div>
       </div>

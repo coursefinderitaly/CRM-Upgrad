@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   FileText,
   Phone,
@@ -27,18 +27,30 @@ import {
   Download,
   AlertCircle,
   HelpCircle,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Lead } from '../types/crm';
 
-import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
+import { countryFlag } from '../utils/country';
+import { LEAD_STATUS_OPTIONS } from '../utils/statuses';
+import { StudentAvatar } from '../components/common/StudentAvatar';
 import {
   useWorkflow,
   getPipelineStageForStudent,
   getNextStageForStudent,
 } from '../context/WorkflowContext';
 import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
+import { ProfileEditModal, ProfileEditField } from '../components/modals/ProfileEditModal';
+import {
+  CommonStudentProfile,
+  fetchCommonProfileById,
+  updateCommonProfileSection,
+  getAuditActor,
+  fetchAudit,
+  AuditEntry,
+} from '../services/api';
 export type { StudentRecord };
-export { INITIAL_STUDENTS };
 
 interface StudentsViewProps {
   currentStageFilter?: string;
@@ -60,14 +72,31 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   onEditLead,
 }) => {
   // Shared workflow store — single source of truth for every stage workspace
-  const { students: workflowStudents, advanceStudentStage } = useWorkflow();
+  const { students: workflowStudents, advanceStudentStage, refreshFromProfiles } = useWorkflow();
 
   // Navigation State: Directory List vs Profile Detail Window
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
 
+  // Full live row set from the student's own SQLite database
+  const [profileDetail, setProfileDetail] = useState<CommonStudentProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileAudits, setProfileAudits] = useState<AuditEntry[]>([]);
+
   // Profile Detail Tabs
   const [activeSubTab, setActiveSubTab] = useState('Overview');
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [statusSaving, setStatusSaving] = useState(false);
+  const [pendingProfileStatus, setPendingProfileStatus] = useState<string | null>(null);
+
+  // Generic section editor — every save writes to the student's SQLite file
+  const [editConfig, setEditConfig] = useState<{
+    section: string;
+    title: string;
+    subtitle?: string;
+    fields: ProfileEditField[];
+    values: Record<string, any>;
+  } | null>(null);
+  const [savingSection, setSavingSection] = useState(false);
 
   // Directory Filter State
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,6 +110,49 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
     const fresh = workflowStudents.find((s) => s.id === selectedStudent.id);
     if (fresh && fresh !== selectedStudent) setSelectedStudent(fresh);
   }, [workflowStudents]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Reloads the exact SQLite-backed row set and live audit trail for the open student. */
+  const loadProfileDetail = useCallback(async (student: StudentRecord | null) => {
+    if (!student) {
+      setProfileDetail(null);
+      setProfileAudits([]);
+      return;
+    }
+    setProfileLoading(true);
+    try {
+      const [detail, auditRes] = await Promise.all([
+        fetchCommonProfileById(student.id),
+        fetchAudit({ entityId: student.id, limit: 50 }).catch(() => ({ total: 0, entries: [] })),
+      ]);
+      setProfileDetail(detail);
+      setProfileAudits(auditRes.entries || []);
+    } catch (err) {
+      console.warn('Could not load live profile rows from SQLite:', err);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!selectedStudent) {
+      setProfileDetail(null);
+      setProfileAudits([]);
+      return;
+    }
+    loadProfileDetail(selectedStudent);
+  }, [selectedStudent?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Enrolled Students only shows students who crossed the counselling funnel.
+  // New leads / contacted / counselling / interested profiles stay in their
+  // own My Students sections until their status becomes Enrolled.
+  const enrolledRoster = useMemo(
+    () =>
+      workflowStudents.filter((st) => {
+        const status = (st.overallStatus || '').trim().toLowerCase();
+        return !['new lead', 'contacted', 'counselling', 'interested'].includes(status);
+      }),
+    [workflowStudents]
+  );
 
   // Stage bands. Applications covers the whole active journey (stages 5-9,
   // including offer-stage files), Offers 6-9, Visa 10-11, Ready 12.
@@ -100,7 +172,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   ] as const;
 
   const tabCount = (id: 'All' | 'Applications' | 'Offers' | 'Visa' | 'Ready') =>
-    id === 'All' ? workflowStudents.length : workflowStudents.filter(TAB_FILTERS[id]).length;
+    id === 'All' ? enrolledRoster.length : enrolledRoster.filter(TAB_FILTERS[id]).length;
 
   // Check URL Hash for deep links like #students?id=ITA-2027-001 or #students?filter=Visa
   useEffect(() => {
@@ -134,6 +206,10 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   // Dynamic header based on active pipeline section
   const stageHeaderConfig: Record<string, { title: string; subtitle: string }> = {
     students: {
+      title: 'Enrolled Students Directory',
+      subtitle: 'Complete lifecycle tracking and detailed profiles of all enrolled students',
+    },
+    leads: {
       title: 'Enrolled Students Directory',
       subtitle: 'Complete lifecycle tracking and detailed profiles of all enrolled students',
     },
@@ -177,7 +253,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
 
   // Filter students for the directory list
   const filteredStudents = useMemo(() => {
-    const list = workflowStudents.filter((st) => {
+    const list = enrolledRoster.filter((st) => {
       const matchesSearch =
         st.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         st.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -221,37 +297,30 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
 
       return matchesSearch && matchesCountry && matchesStatus && matchesTab;
     });
-
-    // Fallback: If zero matches on specific stage filter, show active students matching search so screen is never blank
-    if (list.length === 0 && currentStageFilter && currentStageFilter !== 'students') {
-      return workflowStudents.filter((st) => {
-        const matchesSearch =
-          st.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          st.studentId.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          st.phone.includes(searchQuery);
-        return matchesSearch;
-      });
-    }
-
     return list;
-  }, [workflowStudents, searchQuery, countryFilter, statusFilter, tabFilter, currentStageFilter]);
+  }, [enrolledRoster, searchQuery, countryFilter, statusFilter, tabFilter, currentStageFilter]);
 
   // Convert student record to Lead type for reusable modals
   const studentAsLead = (st: StudentRecord): Lead => ({
     id: st.id,
-    leadId: st.studentId,
+    leadId: st.leadId || st.studentId,
     studentName: st.name,
     phone: st.phone,
     email: st.email,
+    dob: st.dob,
+    address: st.address,
+    nationality: st.nationality,
     countryInterest: st.country,
     courseInterest: st.preferredCourse,
+    intake: st.intake,
+    budget: st.budget,
     leadSource: 'Student Enrolment',
     lastActivity: st.enrollmentDate,
     nextFollowUp: st.nextFollowUp,
     status: st.overallStatus,
     currentStage: st.currentStage,
-    isEnrolled: true,
-    isTransferredToDocs: true,
+    isEnrolled: st.overallStatus === 'Enrolled' || st.stageNumber >= 1,
+    isTransferredToDocs: st.stageNumber >= 4,
   });
 
   const handleOpenStudentProfile = (st: StudentRecord) => {
@@ -278,6 +347,569 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
   // Pipeline (workflow) position for the open profile
   const selectedPipelineStage = activeStudent ? getPipelineStageForStudent(activeStudent) : undefined;
   const selectedNextStage = activeStudent ? getNextStageForStudent(activeStudent) : undefined;
+
+  // -------------------------------------------------------------------
+  // LIVE SQLITE DATA
+  // Everything rendered below comes from the student's own database file:
+  // student_profile/<folder>/<folder>.db
+  // -------------------------------------------------------------------
+  const rawProfile = profileDetail;
+  const rawAcademic = rawProfile?.academic || {};
+  const rawApproval = rawProfile?.approval || {};
+  const rawCounselling = rawProfile?.counselling || {};
+  const rawScholarship = rawProfile?.scholarship || {};
+  const rawPreEnrolment = rawProfile?.pre_enrolment || {};
+  const rawLegalization = rawProfile?.legalization || {};
+  const rawVisa = rawProfile?.visa || {};
+
+  const currentDbFolder = rawProfile?.folder_name || activeStudent?.folderName || '';
+  const currentDbFile = rawProfile?.db_file || activeStudent?.dbFile || (currentDbFolder ? `${currentDbFolder}.db` : '');
+  const currentDbSource = currentDbFile ? `student_profile/${currentDbFolder}/${currentDbFile}` : 'student_profile/';
+
+  const formatDbDate = (value?: string | null): string => {
+    if (!value) return '-';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return String(value);
+    return parsed.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const alternativeCourseList = (() => {
+    const raw = rawProfile?.alternative_courses;
+    if (rawProfile) {
+      if (Array.isArray(raw)) return raw as string[];
+      if (raw) return String(raw).split(/[,;\n]/).map((c) => c.trim()).filter(Boolean);
+      return [];
+    }
+    return activeStudent?.alternativeCourses || [];
+  })();
+
+  const passportDocument = rawProfile?.documents?.find((doc) =>
+    /passport/i.test(doc.document_name || '')
+  );
+  const passportStatus = passportDocument
+    ? `${passportDocument.status}${passportDocument.verified_by ? ` (${passportDocument.verified_by})` : ''}`
+    : 'Pending document upload';
+
+  const paymentSchedule = (() => {
+    const raw = rawApproval.payment_schedule;
+    if (!raw) return [] as string[];
+    return String(raw).split(/\n|;/).map((s) => s.trim()).filter(Boolean);
+  })();
+
+  const applicationStatusClass = (status?: string) => {
+    const s = (status || '').toLowerCase();
+    if (s.includes('accept') || s.includes('offer') || s.includes('approved')) return 'bg-[#dcfce7] text-[#15803d]';
+    if (s.includes('reject')) return 'bg-[#fee2e2] text-[#dc2626]';
+    if (s.includes('draft')) return 'bg-[#f1f5f9] text-[#64748b]';
+    return 'bg-[#e0f2fe] text-[#0284c7]';
+  };
+
+  const displayApplications = rawProfile?.applications?.length
+    ? rawProfile.applications.map((app, idx) => ({
+        id: app.id || String(idx + 1),
+        university: app.university_name || 'University',
+        program: app.program_name || 'Program',
+        intake: activeStudent?.intake || '-',
+        date: app.submission_date || '-',
+        status: app.status || 'Draft',
+        statusColor: applicationStatusClass(app.status),
+      }))
+    : activeStudent?.applications || [];
+
+  const displayOffers = rawProfile?.offers?.length
+    ? rawProfile.offers.map((offer) => ({
+        id: offer.id,
+        university: offer.university_name || 'University',
+        date: offer.received_date || '-',
+        type: offer.offer_type || 'Conditional',
+        conditions: offer.conditions ? [String(offer.conditions)] : [],
+        status: offer.status || 'Received',
+        statusColor: applicationStatusClass(offer.status),
+      }))
+    : (activeStudent?.offers || []).map((offer) => ({ ...offer, id: undefined as string | undefined }));
+
+  const displayDocuments = rawProfile?.documents?.length
+    ? rawProfile.documents.map((doc) => ({
+        id: doc.id,
+        name: doc.document_name || 'Document',
+        status: doc.status || 'Pending',
+        date: formatDbDate((doc as any).created_at || (doc as any).updated_at),
+        remarks: doc.remarks || '',
+        verifiedBy: doc.verified_by || '',
+      }))
+    : (activeStudent?.documents || []).map((doc) => ({
+        id: undefined as string | undefined,
+        name: doc.name,
+        status: doc.status,
+        date: doc.date,
+        remarks: '',
+        verifiedBy: '',
+      }));
+
+  const displayTimeline = activeStudent?.timeline || [];
+
+  // -------------------------------------------------------------------
+  // SECTION EDITORS (all writes go to the student's SQLite file)
+  // -------------------------------------------------------------------
+  const openPersonalEdit = () =>
+    setEditConfig({
+      section: 'profile',
+      title: 'Edit Personal Details',
+      subtitle: 'Updates the student_profiles table.',
+      fields: [
+        { key: 'name', label: 'Full Name' },
+        { key: 'phone', label: 'Mobile' },
+        { key: 'email', label: 'Email', type: 'email' },
+        { key: 'dob', label: 'Date of Birth', placeholder: 'DD/MM/YYYY' },
+        { key: 'nationality', label: 'Nationality' },
+        { key: 'address', label: 'Address', type: 'textarea', fullWidth: true },
+        { key: 'enrollment_date', label: 'Enrollment Date' },
+        { key: 'next_follow_up', label: 'Next Follow-up' },
+        { key: 'priority', label: 'Priority', type: 'select', options: ['High', 'Medium', 'Low'] },
+      ],
+      values: {
+        name: rawProfile?.name || activeStudent?.name,
+        phone: rawProfile?.phone || activeStudent?.phone,
+        email: rawProfile?.email || activeStudent?.email,
+        dob: rawProfile?.dob || activeStudent?.dob,
+        nationality: rawProfile?.nationality || activeStudent?.nationality,
+        address: rawProfile?.address || activeStudent?.address,
+        enrollment_date: rawProfile?.enrollment_date || activeStudent?.enrollmentDate,
+        next_follow_up: rawProfile?.next_follow_up || activeStudent?.nextFollowUp,
+        priority: rawProfile?.priority || activeStudent?.priority,
+      },
+    });
+
+  const openAcademicEdit = () =>
+    setEditConfig({
+      section: 'academic',
+      title: 'Edit Academic Details',
+      subtitle: 'Updates the academic_records table.',
+      fields: [
+        { key: 'tenth_board', label: '10th Board' },
+        { key: 'tenth_percentage', label: '10th Percentage / CGPA' },
+        { key: 'twelfth_board', label: '12th Board' },
+        { key: 'twelfth_percentage', label: '12th Percentage / CGPA' },
+        { key: 'bachelor_degree', label: 'Bachelor Degree' },
+        { key: 'bachelor_university', label: 'University' },
+        { key: 'bachelor_cgpa', label: 'CGPA' },
+        { key: 'bachelor_passing_year', label: 'Passing Year' },
+        { key: 'backlogs', label: 'Backlogs' },
+        { key: 'education_gaps', label: 'Education Gaps' },
+        { key: 'work_experience', label: 'Work Experience' },
+      ],
+      values: {
+        tenth_board: rawAcademic.tenth_board,
+        tenth_percentage: rawAcademic.tenth_percentage,
+        twelfth_board: rawAcademic.twelfth_board,
+        twelfth_percentage: rawAcademic.twelfth_percentage,
+        bachelor_degree: rawAcademic.bachelor_degree,
+        bachelor_university: rawAcademic.bachelor_university,
+        bachelor_cgpa: rawAcademic.bachelor_cgpa,
+        bachelor_passing_year: rawAcademic.bachelor_passing_year,
+        backlogs: rawAcademic.backlogs,
+        education_gaps: rawAcademic.education_gaps,
+        work_experience: rawAcademic.work_experience,
+      },
+    });
+
+  const openTestScoreEdit = () => {
+    const test: any = rawProfile?.test_scores?.[0] || {};
+    setEditConfig({
+      section: 'test_scores',
+      title: 'Edit English / Standardized Test',
+      subtitle: 'Updates the test_scores table.',
+      fields: [
+        { key: 'test_type', label: 'Test Type', type: 'select', options: ['IELTS', 'TOEFL', 'PTE', 'Duolingo', 'GRE', 'GMAT'] },
+        { key: 'overall_score', label: 'Overall Score' },
+        { key: 'reading', label: 'Reading' },
+        { key: 'writing', label: 'Writing' },
+        { key: 'listening', label: 'Listening' },
+        { key: 'speaking', label: 'Speaking' },
+        { key: 'test_date', label: 'Test Date' },
+        { key: 'status', label: 'Status', type: 'select', options: ['Passed', 'Reported', 'Scheduled', 'In Prep'] },
+      ],
+      values: {
+        test_type: test.test_type || 'IELTS',
+        overall_score: test.overall_score,
+        reading: test.reading,
+        writing: test.writing,
+        listening: test.listening,
+        speaking: test.speaking,
+        test_date: test.test_date,
+        status: test.status,
+      },
+    });
+  };
+
+  const openProgramEdit = () =>
+    setEditConfig({
+      section: 'profile',
+      title: 'Edit Program Preferences',
+      subtitle: 'Updates the student_profiles table.',
+      fields: [
+        { key: 'country', label: 'Target Country' },
+        { key: 'course_level', label: 'Course Level', type: 'select', options: ['Bachelor', 'Master', 'PhD', 'Diploma'] },
+        { key: 'preferred_course', label: 'Preferred Course' },
+        { key: 'alternative_courses', label: 'Alternative Courses (comma separated)', type: 'textarea', fullWidth: true },
+        { key: 'target_university', label: 'Target University' },
+        { key: 'intake', label: 'Target Intake' },
+        { key: 'budget', label: 'Budget' },
+      ],
+      values: {
+        country: rawProfile?.country || activeStudent?.country,
+        course_level: rawProfile?.course_level || activeStudent?.courseLevel,
+        preferred_course: rawProfile?.preferred_course || activeStudent?.preferredCourse,
+        alternative_courses: alternativeCourseList.join(', '),
+        target_university: rawProfile?.target_university || activeStudent?.targetUniversity,
+        intake: rawProfile?.intake || activeStudent?.intake,
+        budget: rawProfile?.budget || '',
+      },
+    });
+
+  const openCounsellingNotesEdit = () =>
+    setEditConfig({
+      section: 'counselling',
+      title: 'Edit Counselling Notes',
+      subtitle: 'Updates the counselling_records table.',
+      fields: [
+        { key: 'counsellor_name', label: 'Counsellor' },
+        { key: 'session_date', label: 'Session Date' },
+        { key: 'preferred_countries', label: 'Preferred Countries' },
+        { key: 'budget_bracket', label: 'Budget Bracket' },
+        { key: 'outcome', label: 'Outcome' },
+        { key: 'notes', label: 'Notes', type: 'textarea', fullWidth: true },
+        { key: 'recommendations', label: 'Recommendations', type: 'textarea', fullWidth: true },
+      ],
+      values: {
+        counsellor_name: (rawCounselling as any).counsellor_name || activeStudent?.counsellor,
+        session_date: (rawCounselling as any).session_date,
+        preferred_countries: (rawCounselling as any).preferred_countries,
+        budget_bracket: (rawCounselling as any).budget_bracket,
+        outcome: (rawCounselling as any).outcome,
+        notes: (rawCounselling as any).notes,
+        recommendations: (rawCounselling as any).recommendations,
+      },
+    });
+
+  const openPaymentEdit = () =>
+    setEditConfig({
+      section: 'payment',
+      title: 'Edit Payment & Agreement',
+      subtitle: 'Updates the student_approvals table.',
+      fields: [
+        {
+          key: 'agreement_status',
+          label: 'Agreement Status',
+          type: 'select',
+          options: ['Pending', 'Signed by Student', 'Signed', 'Not Signed'],
+        },
+        { key: 'service_package', label: 'Service Package' },
+        { key: 'total_fee', label: 'Total Fee' },
+        { key: 'amount_paid', label: 'Amount Paid' },
+        { key: 'balance', label: 'Balance' },
+        {
+          key: 'payment_schedule',
+          label: 'Payment Schedule (one instalment per line)',
+          type: 'textarea',
+          fullWidth: true,
+        },
+        { key: 'choice_1_university', label: 'Choice 1 University' },
+        { key: 'choice_2_university', label: 'Choice 2 University' },
+      ],
+      values: {
+        agreement_status: rawApproval.agreement_status || (rawApproval.agreement_signed ? 'Signed' : 'Pending'),
+        service_package: rawApproval.service_package,
+        total_fee: rawApproval.total_fee,
+        amount_paid: rawApproval.amount_paid,
+        balance: rawApproval.balance,
+        payment_schedule: rawApproval.payment_schedule || paymentSchedule.join('\n'),
+        choice_1_university: rawApproval.choice_1_university,
+        choice_2_university: rawApproval.choice_2_university,
+      },
+    });
+
+  const openDocumentEdit = (doc: { id?: string; name: string; status: string; remarks: string; verifiedBy: string }) =>
+    setEditConfig({
+      section: 'documents',
+      title: `Edit Document — ${doc.name}`,
+      subtitle: 'Updates the documents_checklist table.',
+      fields: [
+        { key: 'document_name', label: 'Document Name' },
+        { key: 'status', label: 'Status', type: 'select', options: ['Pending', 'Received', 'Verified', 'Approved', 'Needs Re-upload'] },
+        { key: 'verified_by', label: 'Verified By' },
+        { key: 'remarks', label: 'Remarks', type: 'textarea', fullWidth: true },
+      ],
+      values: {
+        id: doc.id,
+        document_name: doc.name,
+        status: doc.status,
+        verified_by: doc.verifiedBy,
+        remarks: doc.remarks,
+      },
+    });
+
+  const openApplicationEdit = (app?: {
+    id?: string | number;
+    university: string;
+    program: string;
+    date: string;
+    status: string;
+  }) =>
+    setEditConfig({
+      section: 'applications',
+      title: app?.id ? 'Edit University Application' : 'Add University Application',
+      subtitle: 'Updates the university_applications table.',
+      fields: [
+        { key: 'university_name', label: 'University Name' },
+        { key: 'program_name', label: 'Program' },
+        { key: 'portal_application_id', label: 'Portal Application ID' },
+        { key: 'submission_date', label: 'Application Date' },
+        {
+          key: 'status',
+          label: 'Status',
+          type: 'select',
+          options: ['Draft', 'Submitted', 'Under Evaluation', 'Interview Scheduled', 'Accepted', 'Rejected'],
+        },
+      ],
+      values: {
+        // Local numeric mock ids are not SQLite row ids — only pass real UUIDs.
+        id: typeof app?.id === 'string' ? app.id : undefined,
+        university_name: app?.university || '',
+        program_name: app?.program || '',
+        portal_application_id: '',
+        submission_date: app?.date && app.date !== '-' ? app.date : '',
+        status: app?.status || 'Submitted',
+      },
+    });
+
+  const openOfferEdit = (offer?: {
+    id?: string;
+    university: string;
+    date: string;
+    type: string;
+    conditions: string[];
+    status: string;
+  }) =>
+    setEditConfig({
+      section: 'offers',
+      title: offer?.university ? 'Edit Offer Letter' : 'Add Offer Letter',
+      subtitle: 'Updates the offer_letters table.',
+      fields: [
+        { key: 'university_name', label: 'University Name' },
+        { key: 'offer_type', label: 'Offer Type', type: 'select', options: ['Conditional Offer', 'Unconditional Offer'] },
+        { key: 'received_date', label: 'Offer Date' },
+        { key: 'conditions', label: 'Conditions', type: 'textarea', fullWidth: true },
+        { key: 'deposit_amount', label: 'Deposit Amount' },
+        { key: 'status', label: 'Status', type: 'select', options: ['Received', 'Seat Secured', 'Under Verification', 'Accepted', 'Declined'] },
+      ],
+      values: {
+        id: offer?.id,
+        university_name: offer?.university || '',
+        offer_type: offer?.type || 'Conditional Offer',
+        received_date: offer?.date && offer.date !== '-' ? offer.date : '',
+        conditions: (offer?.conditions || []).join('\n'),
+        deposit_amount: '',
+        status: offer?.status || 'Received',
+      },
+    });
+
+  const openScholarshipEdit = () =>
+    setEditConfig({
+      section: 'scholarship',
+      title: 'Edit Scholarship Process',
+      subtitle: 'Updates the scholarships table.',
+      fields: [
+        { key: 'scholarship_name', label: 'Scholarship Name' },
+        { key: 'regional_authority', label: 'Regional Authority' },
+        { key: 'isee_parificato_amount', label: 'ISEE Parificato Amount' },
+        { key: 'stipend_amount', label: 'Stipend Amount' },
+        { key: 'application_deadline', label: 'Application Deadline' },
+        { key: 'family_income_doc_status', label: 'Family Income Doc Status' },
+        { key: 'status', label: 'Status' },
+      ],
+      values: {
+        scholarship_name: rawScholarship.scholarship_name,
+        regional_authority: (rawScholarship as any).regional_authority,
+        isee_parificato_amount: rawScholarship.isee_parificato_amount,
+        stipend_amount: rawScholarship.stipend_amount,
+        application_deadline: (rawScholarship as any).application_deadline,
+        family_income_doc_status: (rawScholarship as any).family_income_doc_status,
+        status: rawScholarship.status,
+      },
+    });
+
+  const openPreEnrolmentEdit = () =>
+    setEditConfig({
+      section: 'pre-enrolment',
+      title: 'Edit Pre-Enrolment (Universitaly)',
+      subtitle: 'Updates the pre_enrolments table.',
+      fields: [
+        { key: 'universitaly_summary_code', label: 'Universitaly Summary Code' },
+        { key: 'university_validation_status', label: 'University Validation Status' },
+        { key: 'status', label: 'Status' },
+      ],
+      values: {
+        universitaly_summary_code: rawPreEnrolment.universitaly_summary_code,
+        university_validation_status: rawPreEnrolment.university_validation_status,
+        status: rawPreEnrolment.status,
+      },
+    });
+
+  const openDovEdit = () =>
+    setEditConfig({
+      section: 'dov',
+      title: 'Edit DoV / CIMEA Process',
+      subtitle: 'Updates the legalizations table.',
+      fields: [
+        { key: 'process_type', label: 'Process Type', type: 'select', options: ['DoV', 'CIMEA Statement of Comparability'] },
+        { key: 'cimea_diploma_ref', label: 'CIMEA / DoV Reference' },
+        { key: 'status', label: 'Status' },
+      ],
+      values: {
+        process_type: rawLegalization.process_type,
+        cimea_diploma_ref: rawLegalization.cimea_diploma_ref,
+        status: rawLegalization.status,
+      },
+    });
+
+  const openVisaEdit = () =>
+    setEditConfig({
+      section: 'visa',
+      title: 'Edit Visa Process',
+      subtitle: 'Updates the visa_processes table.',
+      fields: [
+        { key: 'vfs_center', label: 'VFS Center' },
+        { key: 'appointment_date', label: 'Appointment Date' },
+        { key: 'appointment_time', label: 'Appointment Time' },
+        { key: 'visa_type', label: 'Visa Type' },
+        { key: 'vfs_reference_no', label: 'VFS Reference No.' },
+        { key: 'checklist_verification', label: 'Checklist Verification' },
+        { key: 'financial_proof_amount', label: 'Financial Proof Amount' },
+        {
+          key: 'decision',
+          label: 'Decision',
+          type: 'select',
+          options: ['Not Started', 'In Progress', 'Appointment Booked', 'Submitted', 'Approved', 'Rejected'],
+        },
+      ],
+      values: {
+        vfs_center: rawVisa.vfs_center,
+        appointment_date: rawVisa.appointment_date,
+        appointment_time: rawVisa.appointment_time,
+        visa_type: rawVisa.visa_type,
+        vfs_reference_no: rawVisa.vfs_reference_no,
+        checklist_verification: rawVisa.checklist_verification,
+        financial_proof_amount: rawVisa.financial_proof_amount,
+        decision: rawVisa.decision,
+      },
+    });
+
+  const handleSaveSection = async (values: Record<string, any>) => {
+    if (!editConfig || !activeStudent) return;
+    setSavingSection(true);
+    try {
+      const actor = getAuditActor();
+      const result = await updateCommonProfileSection(
+        activeStudent.id,
+        editConfig.section,
+        values,
+        actor.name || 'Staff Operator',
+        actor.role || 'counsellor',
+        { email: actor.email || undefined, portal: 'Counsellor Portal' }
+      );
+      if (!result) throw new Error('The server did not confirm the SQLite update.');
+      await refreshFromProfiles();
+      const fresh = await fetchCommonProfileById(activeStudent.id);
+      setProfileDetail(fresh);
+      setToastMessage(`${editConfig.title} saved to ${currentDbSource}`);
+      setTimeout(() => setToastMessage(null), 3500);
+    } finally {
+      setSavingSection(false);
+    }
+  };
+
+  const applyProfileStatusChange = async (newStatus: string) => {
+    if (!activeStudent || statusSaving || newStatus === activeStudent.overallStatus) return;
+    setStatusSaving(true);
+    try {
+      const actor = getAuditActor();
+      const result = await updateCommonProfileSection(
+        activeStudent.id,
+        'profile',
+        { overall_status: newStatus },
+        actor.name || 'Staff Operator',
+        actor.role || 'counsellor',
+        { email: actor.email || undefined, portal: 'Counsellor Portal' }
+      );
+      if (!result) throw new Error('Could not update status in the SQLite profile.');
+      await refreshFromProfiles();
+      const fresh = await fetchCommonProfileById(activeStudent.id);
+      setProfileDetail(fresh);
+      setSelectedStudent((prev) => (prev ? { ...prev, overallStatus: newStatus } : prev));
+      setToastMessage(
+        newStatus === 'Enrolled'
+          ? `${activeStudent.name} is now in Enrolled Students — stage was not advanced.`
+          : `Status updated to ${newStatus}`
+      );
+      setTimeout(() => setToastMessage(null), 3500);
+      // Enrolled students move exclusively to the Enrolled Students section.
+      if (newStatus === 'Enrolled' && onNavigate) onNavigate('students');
+    } catch (err: any) {
+      setToastMessage(err?.message || 'Could not update status');
+      setTimeout(() => setToastMessage(null), 3500);
+    } finally {
+      setStatusSaving(false);
+    }
+  };
+
+  const handleProfileStatusChange = (newStatus: string) => {
+    if (!activeStudent || statusSaving || newStatus === activeStudent.overallStatus) return;
+    setPendingProfileStatus(newStatus);
+  };
+
+  const focusSection = (tab: string, elementId?: string) => {
+    setActiveSubTab(tab);
+    if (elementId) {
+      setTimeout(() => {
+        document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
+    }
+  };
+
+  const handleProfileTabClick = (tab: string) => {
+    // Only redirect to workspaces that actually exist inside the counsellor
+    // portal. Downstream work stays inside this profile page instead of
+    // sending the counsellor to a blank route owned by another portal.
+    if (tab === 'Enrolment') {
+      onNavigate?.('enrolment');
+      return;
+    }
+    if (tab === 'University Shortlisting') {
+      onNavigate?.('university-shortlisting');
+      return;
+    }
+    if (tab === 'Student Approval') {
+      onNavigate?.('student-approval');
+      return;
+    }
+
+    const anchors: Record<string, string> = {
+      Overview: 'profile-overview',
+      Documents: 'profile-documents',
+      Applications: 'profile-applications',
+      'Offer Letters': 'profile-offers',
+      'Final University': 'profile-offers',
+      Scholarship: 'profile-scholarship',
+      'Pre-Enrolment': 'profile-preenrolment',
+      'DoV / CIMEA': 'profile-dov',
+      Visa: 'profile-visa',
+      'Pre-Departure': 'profile-overview',
+      Timeline: 'profile-timeline',
+    };
+    focusSection(tab, anchors[tab] || 'profile-overview');
+  };
+
 
   // Floating Confirmation Card State
   const [confirmModalData, setConfirmModalData] = useState<{
@@ -323,7 +955,19 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
           setToastMessage(`${activeStudent.name} moved to ${next.label}`);
           setTimeout(() => setToastMessage(null), 3000);
           if (onNavigate) {
-            onNavigate(`${next.route}?id=${activeStudent.studentId}`);
+            // The counsellor portal only owns the early stages. Once the
+            // student crosses into Documentation/Application territory, stay
+            // in a real counsellor section instead of opening a blank route.
+            const counsellorRoutes = new Set([
+              'students',
+              'leads',
+              'counselling',
+              'enrolment',
+              'university-shortlisting',
+              'student-approval',
+            ]);
+            const targetRoute = counsellorRoutes.has(next.route) ? next.route : 'students';
+            onNavigate(`${targetRoute}?id=${activeStudent.studentId}`);
           }
         }
       },
@@ -423,6 +1067,49 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
         />
       )}
 
+      {/* Status change confirmation — required from every update entry point */}
+      {pendingProfileStatus && activeStudent && (
+        <ActionConfirmModal
+          isOpen
+          onClose={() => setPendingProfileStatus(null)}
+          onConfirm={() => {
+            const next = pendingProfileStatus;
+            setPendingProfileStatus(null);
+            if (next) applyProfileStatusChange(next);
+          }}
+          title={`Change status to "${pendingProfileStatus}"?`}
+          studentName={activeStudent.name}
+          studentId={activeStudent.studentId}
+          studentAvatar={activeStudent.avatar}
+          country={activeStudent.country}
+          currentStageName={activeStudent.overallStatus}
+          targetStageName={pendingProfileStatus}
+          description={`Are you sure you want to change ${activeStudent.name}'s status from "${activeStudent.overallStatus}" to "${pendingProfileStatus}"? This will update the student's SQLite profile.`}
+          confirmLabel={`Yes, change to ${pendingProfileStatus}`}
+          variant={
+            pendingProfileStatus === 'Enrolled'
+              ? 'success'
+              : pendingProfileStatus === 'Drop' || pendingProfileStatus === 'Lost'
+                ? 'danger'
+                : pendingProfileStatus === 'On Hold'
+                  ? 'warning'
+                  : 'primary'
+          }
+        />
+      )}
+
+      {/* SQLite-backed section editor (personal, academic, payment, docs, etc.) */}
+      <ProfileEditModal
+        isOpen={Boolean(editConfig)}
+        title={editConfig?.title || 'Edit Profile Section'}
+        subtitle={editConfig?.subtitle}
+        studentName={activeStudent?.name}
+        fields={editConfig?.fields || []}
+        initialValues={editConfig?.values || {}}
+        onClose={() => setEditConfig(null)}
+        onSave={handleSaveSection}
+      />
+
       {/* ======================================================== */}
       {/* MODE 1: STUDENTS DIRECTORY (LIST VIEW)                  */}
       {/* ======================================================== */}
@@ -456,6 +1143,14 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('open-meta-sheet-modal', { detail: { viewOnly: true } }))}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[6px] bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-300 shadow-2xs transition-all cursor-pointer"
+                title="View Meta Ads inquiries from Google Sheet"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Meta Ads Leads (View Only)</span>
+              </button>
               <span className="text-[11.5px] text-[#64748b] hidden sm:inline">
                 Home &gt;{' '}
                 <span className="font-semibold text-[#101d37]">
@@ -469,9 +1164,9 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5">
             <div className="bg-white p-3 rounded-[8px] border border-[#e5edf5] shadow-xs">
               <span className="text-[10.5px] text-[#64748b] font-medium block">Total Enrolled</span>
-              <div className="text-[20px] font-bold text-[#101d37] mt-0.5">{workflowStudents.length}</div>
+              <div className="text-[20px] font-bold text-[#101d37] mt-0.5">{enrolledRoster.length}</div>
               <span className="text-[10px] text-[#15803d] font-semibold mt-0.5 inline-block">
-                ● {workflowStudents.filter((st) => st.overallStatus !== 'Lost').length} Active
+                ● {enrolledRoster.filter((st) => st.overallStatus !== 'Lost').length} Active
               </span>
             </div>
             <div className="bg-white p-3 rounded-[8px] border border-[#e5edf5] shadow-xs">
@@ -590,13 +1285,10 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                         <td className="py-3 px-3 text-[#64748b]">{idx + 1}</td>
                         <td className="py-3 px-3">
                           <div className="flex items-center gap-2.5">
-                            <img
+                            <StudentAvatar
+                              name={st.name}
                               src={st.avatar}
-                              alt={st.name}
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = '/avatars/rahul.png';
-                              }}
-                              className="w-8 h-8 aspect-square rounded-full object-cover border border-slate-200 shrink-0"
+                              className="w-8 h-8 aspect-square rounded-full object-cover border border-slate-200 shrink-0 text-[10px]"
                             />
                             <div>
                               <div className="font-bold text-[#101d37] group-hover:text-[#087cf5] transition-colors">
@@ -611,7 +1303,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                         <td className="py-3 px-3">
                           <div className="font-medium text-[#101d37] flex items-center gap-1.5">
                             <span>
-                              {st.country === 'Italy' ? '🇮🇹' : st.country === 'Germany' ? '🇩🇪' : st.country === 'UK' ? '🇬🇧' : st.country === 'France' ? '🇫🇷' : '🇮🇪'}
+                              {countryFlag(st.country)}
                             </span>
                             <span>{st.country}</span>
                           </div>
@@ -669,7 +1361,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                             }}
                             className="px-2.5 py-1 rounded-[5px] bg-blue-50 text-[#087cf5] hover:bg-[#087cf5] hover:text-white font-semibold text-[11px] transition-colors inline-flex items-center gap-1 shadow-xs"
                           >
-                            <span>View Profile</span>
+                            <span>View</span>
                             <span>&gt;</span>
                           </button>
                         </td>
@@ -689,7 +1381,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
             <div className="px-3.5 py-2.5 bg-[#f8fafc] border-t border-[#e5edf5] flex flex-wrap items-center justify-between gap-2 text-[11.5px] text-[#64748b]">
               <div className="flex items-center gap-2">
                 <span className="font-medium text-[#101d37]">
-                  Showing <span className="font-bold text-[#087cf5]">{filteredStudents.length}</span> of {workflowStudents.length} students
+                  Showing <span className="font-bold text-[#087cf5]">{filteredStudents.length}</span> of {enrolledRoster.length} enrolled students
                 </span>
                 <span className="hidden sm:inline text-slate-300">|</span>
                 <span className="hidden sm:inline text-[11px] text-slate-500">
@@ -756,19 +1448,16 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
               {/* Left Block: Avatar + Name + Core Identifiers */}
               <div className="flex items-start gap-3">
                 <div className="relative shrink-0">
-                  <img
+                  <StudentAvatar
+                    name={selectedStudent.name}
                     src={selectedStudent.avatar}
-                    alt={selectedStudent.name}
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/avatars/rahul.png';
-                    }}
-                    className="w-14 h-14 aspect-square rounded-full object-cover border-2 border-slate-200 shadow-xs shrink-0"
+                    className="w-14 h-14 aspect-square rounded-full object-cover border-2 border-slate-200 shadow-xs shrink-0 text-base"
                   />
                 </div>
                 <div className="space-y-0.5">
                   <div className="flex items-center gap-2">
                     <h1 className="text-[17px] font-bold text-[#101d37] leading-tight">
-                      {selectedStudent.name}
+                      {rawProfile?.name || selectedStudent.name}
                     </h1>
                     <span className="px-2 py-0.2 rounded-full bg-[#15803d] text-white text-[10.5px] font-bold leading-normal">
                       Active
@@ -778,19 +1467,19 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-0.5 text-[11px] pt-0.5">
                     <div className="flex items-center gap-1.5">
                       <span className="text-[#64748b]">Student ID:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.studentId}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.student_id || selectedStudent.studentId}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[#64748b]">Counsellor:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.counsellor}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.counsellor_name || selectedStudent.counsellor}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[#64748b]">Mobile:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.phone}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.phone || selectedStudent.phone}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <span className="text-[#64748b]">Email:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.email}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.email || selectedStudent.email}</span>
                     </div>
                   </div>
                 </div>
@@ -801,27 +1490,27 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                 <div className="flex items-center gap-1.5 pb-0.5">
                   {/* Flag of Destination Country */}
                   <span className="text-base">
-                    {selectedStudent.country === 'Italy' ? '🇮🇹' : selectedStudent.country === 'Germany' ? '🇩🇪' : '🇬🇧'}
+                    {countryFlag(rawProfile?.country || selectedStudent.country)}
                   </span>
                   <span className="font-bold text-[12.5px] text-[#101d37]">
-                    {selectedStudent.country}
+                    {rawProfile?.country || selectedStudent.country}
                   </span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[#64748b]">Intake:</span>
-                  <span className="font-medium text-[#101d37]">{selectedStudent.intake}</span>
+                  <span className="font-medium text-[#101d37]">{rawProfile?.intake || selectedStudent.intake}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[#64748b]">Course Level:</span>
-                  <span className="font-medium text-[#101d37]">{selectedStudent.courseLevel}</span>
+                  <span className="font-medium text-[#101d37]">{rawProfile?.course_level || selectedStudent.courseLevel}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[#64748b]">Preferred Course:</span>
-                  <span className="font-medium text-[#101d37]">{selectedStudent.preferredCourse}</span>
+                  <span className="font-medium text-[#101d37]">{rawProfile?.preferred_course || selectedStudent.preferredCourse}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[#64748b]">Target University:</span>
-                  <span className="font-medium text-[#101d37]">{selectedStudent.targetUniversity}</span>
+                  <span className="font-medium text-[#101d37]">{rawProfile?.target_university || selectedStudent.targetUniversity}</span>
                 </div>
               </div>
 
@@ -832,7 +1521,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                   <div className="text-[10px] text-[#64748b] font-medium">Enrollment Date</div>
                   <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] border border-[#e2e8f0] bg-white text-[11.5px] font-medium text-[#101d37]">
                     <Calendar className="w-3.5 h-3.5 text-[#64748b]" />
-                    <span>{selectedStudent.enrollmentDate}</span>
+                    <span>{formatDbDate(rawProfile?.enrollment_date) !== '-' ? formatDbDate(rawProfile?.enrollment_date) : selectedStudent.enrollmentDate}</span>
                   </div>
                 </div>
 
@@ -845,15 +1534,37 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                     title="Reschedule Follow-up"
                   >
                     <Calendar className="w-3.5 h-3.5 text-[#64748b]" />
-                    <span>{selectedStudent.nextFollowUp}</span>
+                    <span>{rawProfile?.next_follow_up || selectedStudent.nextFollowUp}</span>
                   </button>
                 </div>
 
-                {/* Overall Status Pill */}
+                {/* Overall Status Dropdown — updates the SQLite profile only */}
                 <div className="space-y-1">
                   <div className="text-[10px] text-[#64748b] font-medium">Overall Status</div>
-                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-[5px] bg-[#e0f2fe] text-[#0284c7] font-semibold text-[11.5px]">
-                    <span>{selectedStudent.overallStatus}</span>
+                  <div
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-[5px] font-semibold text-[11.5px] ${
+                      rawProfile?.overall_status === 'On Hold' || rawProfile?.overall_status === 'Drop'
+                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                        : 'bg-[#e0f2fe] text-[#0284c7]'
+                    }`}
+                  >
+                    <select
+                      value={rawProfile?.overall_status || selectedStudent.overallStatus}
+                      onChange={(e) => handleProfileStatusChange(e.target.value)}
+                      disabled={statusSaving}
+                      className={`bg-transparent outline-none text-[11.5px] font-semibold cursor-pointer disabled:opacity-60 ${
+                        rawProfile?.overall_status === 'On Hold' || rawProfile?.overall_status === 'Drop'
+                          ? 'text-rose-700'
+                          : 'text-[#0284c7]'
+                      }`}
+                      title="Changing to Enrolled moves the student to Enrolled Students without advancing the pipeline stage"
+                    >
+                      {LEAD_STATUS_OPTIONS.map((status) => (
+                        <option key={status} value={status}>
+                          {status}
+                        </option>
+                      ))}
+                    </select>
                     <ChevronDown className="w-3 h-3" />
                   </div>
                 </div>
@@ -962,15 +1673,17 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                   </span>
                 )}
               </div>
-              {selectedNextStage && (
-                <button
-                  onClick={handleAdvanceStage}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[11.5px] font-semibold shadow-xs transition-colors"
-                >
-                  <span>Move to {selectedNextStage.label}</span>
-                  <Send className="w-3.5 h-3.5" />
-                </button>
-              )}
+              <div className="flex flex-wrap items-center justify-end gap-2">
+                {selectedNextStage && (
+                  <button
+                    onClick={handleAdvanceStage}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[11.5px] font-semibold shadow-xs transition-colors"
+                  >
+                    <span>Move to {selectedNextStage.label}</span>
+                    <Send className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
           )}
 
@@ -981,23 +1694,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
               return (
                 <button
                   key={tab}
-                  onClick={() => {
-                    setActiveSubTab(tab);
-                    if (tab !== 'Overview' && onNavigate) {
-                      if (tab === 'Documents') onNavigate('documentation');
-                      else if (tab === 'University Shortlisting') onNavigate('university-shortlisting');
-                      else if (tab === 'Student Approval') onNavigate('student-approval');
-                      else if (tab === 'Applications') onNavigate('applications');
-                      else if (tab === 'Offer Letters') onNavigate('offers');
-                      else if (tab === 'Final University') onNavigate('final-university');
-                      else if (tab === 'Scholarship') onNavigate('scholarship');
-                      else if (tab === 'Pre-Enrolment') onNavigate('pre-enrolment');
-                      else if (tab === 'DoV / CIMEA') onNavigate('dov-cimea');
-                      else if (tab === 'Visa') onNavigate('visa-process');
-                      else if (tab === 'Pre-Departure') onNavigate('pre-departure');
-                      else if (tab === 'Timeline') onNavigate('dashboard');
-                    }
-                  }}
+                  onClick={() => handleProfileTabClick(tab)}
                   className={`px-3 py-1.5 rounded-[5px] transition-all whitespace-nowrap font-medium ${
                     isActive
                       ? 'bg-[#087cf5] text-white font-semibold shadow-xs'
@@ -1011,11 +1708,11 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
           </div>
 
           {/* 3. Main Dashboard Content Grid */}
-          <div className="space-y-3">
+          <div id="profile-overview" className="space-y-3">
             {/* ROW 1: 4 Cards (Personal Details, Academic Details, Program Preferences, Payment & Agreement) */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-stretch">
               {/* Card 1: Personal Details */}
-              <div className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs flex flex-col justify-between">
+              <div id="profile-personal" className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
@@ -1023,7 +1720,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                       <span>Personal Details</span>
                     </div>
                     <button
-                      onClick={() => onEditLead && onEditLead(studentAsLead(selectedStudent))}
+                      onClick={openPersonalEdit}
                       className="flex items-center gap-1 text-[11px] text-[#087cf5] hover:underline font-semibold"
                     >
                       <Edit2 className="w-3 h-3" />
@@ -1035,23 +1732,23 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                     <div className="flex">
                       <span className="w-24 text-[#64748b] shrink-0">Full Name</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.name}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.name || selectedStudent.name}</span>
                     </div>
                     <div className="flex">
                       <span className="w-24 text-[#64748b] shrink-0">Date of Birth</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.dob}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.dob || selectedStudent.dob}</span>
                     </div>
                     <div className="flex">
                       <span className="w-24 text-[#64748b] shrink-0">Nationality</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.nationality}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.nationality || selectedStudent.nationality}</span>
                     </div>
                     <div className="flex items-center">
                       <span className="w-24 text-[#64748b] shrink-0">Mobile</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-medium text-[#101d37] flex items-center gap-1">
-                        {selectedStudent.phone}
+                        {rawProfile?.phone || selectedStudent.phone}
                         <button
                           onClick={() => onOpenWhatsApp && onOpenWhatsApp(studentAsLead(selectedStudent))}
                           title="Send WhatsApp"
@@ -1066,19 +1763,23 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                     <div className="flex">
                       <span className="w-24 text-[#64748b] shrink-0">Email</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37] truncate">{selectedStudent.email}</span>
+                      <span className="font-medium text-[#101d37] truncate">{rawProfile?.email || selectedStudent.email}</span>
                     </div>
                     <div className="flex">
                       <span className="w-24 text-[#64748b] shrink-0">Address</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.address}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.address || selectedStudent.address}</span>
                     </div>
                     <div className="flex items-center">
                       <span className="w-24 text-[#64748b] shrink-0">Passport</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#15803d] flex items-center gap-1">
-                        Available (Valid till 2028)
-                        <CheckCircle2 className="w-3.5 h-3.5 fill-[#15803d] text-white" />
+                      <span
+                        className={`font-medium flex items-center gap-1 ${
+                          passportDocument ? 'text-[#15803d]' : 'text-[#d97706]'
+                        }`}
+                      >
+                        {passportStatus}
+                        {passportDocument && <CheckCircle2 className="w-3.5 h-3.5 fill-[#15803d] text-white" />}
                       </span>
                     </div>
                   </div>
@@ -1094,7 +1795,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                       <span>Academic Details</span>
                     </div>
                     <button
-                      onClick={() => onEditLead && onEditLead(studentAsLead(selectedStudent))}
+                      onClick={openAcademicEdit}
                       className="flex items-center gap-1 text-[11px] text-[#087cf5] hover:underline font-semibold"
                     >
                       <Edit2 className="w-3 h-3" />
@@ -1104,52 +1805,84 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
 
                   <div className="pt-2 space-y-1.5 text-[11px]">
                     <div className="flex">
+                      <span className="w-32 text-[#64748b] shrink-0">10th Standard</span>
+                      <span className="text-[#64748b] mr-1">:</span>
+                      <span className="font-medium text-[#101d37]">
+                        {rawAcademic.tenth_percentage || '-'}
+                        {rawAcademic.tenth_board ? ` (${rawAcademic.tenth_board})` : ''}
+                      </span>
+                    </div>
+                    <div className="flex">
+                      <span className="w-32 text-[#64748b] shrink-0">12th Standard</span>
+                      <span className="text-[#64748b] mr-1">:</span>
+                      <span className="font-medium text-[#101d37]">
+                        {rawAcademic.twelfth_percentage || '-'}
+                        {rawAcademic.twelfth_board ? ` (${rawAcademic.twelfth_board})` : ''}
+                      </span>
+                    </div>
+                    <div className="flex">
                       <span className="w-32 text-[#64748b] shrink-0">Highest Qualification</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-medium text-[#101d37]">
-                        {selectedStudent.academic.highestQualification}
+                        {rawAcademic.bachelor_degree || '-'}
                       </span>
                     </div>
                     <div className="flex">
                       <span className="w-32 text-[#64748b] shrink-0">University</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-medium text-[#101d37]">
-                        {selectedStudent.academic.university}
+                        {rawAcademic.bachelor_university || '-'}
                       </span>
                     </div>
                     <div className="flex">
                       <span className="w-32 text-[#64748b] shrink-0">Passing Year</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-medium text-[#101d37]">
-                        {selectedStudent.academic.passingYear}
+                        {rawAcademic.bachelor_passing_year || '-'}
                       </span>
                     </div>
                     <div className="flex">
                       <span className="w-32 text-[#64748b] shrink-0">CGPA</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-medium text-[#101d37]">
-                        {selectedStudent.academic.cgpa}
+                        {rawAcademic.bachelor_cgpa || '-'}
                       </span>
                     </div>
-                    <div className="flex">
+                    <div className="flex items-center">
                       <span className="w-32 text-[#64748b] shrink-0">English Test</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-medium text-[#101d37]">
-                        {selectedStudent.academic.englishTest}
+                        {rawProfile?.test_scores?.[0]
+                          ? `${rawProfile.test_scores[0].test_type} ${rawProfile.test_scores[0].overall_score}`
+                          : selectedStudent.academic.englishTest}
                       </span>
+                      <button
+                        onClick={openTestScoreEdit}
+                        className="ml-1 text-[#087cf5] hover:underline"
+                        title="Edit test scores in SQLite"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
                     </div>
                     <div className="flex">
                       <span className="w-32 text-[#64748b] shrink-0">Work Experience</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-medium text-[#101d37]">
-                        {selectedStudent.academic.workExperience}
+                        {rawAcademic.work_experience || '-'}
+                      </span>
+                    </div>
+                    <div className="flex">
+                      <span className="w-32 text-[#64748b] shrink-0">Backlogs / Gaps</span>
+                      <span className="text-[#64748b] mr-1">:</span>
+                      <span className="font-medium text-[#101d37]">
+                        {rawAcademic.backlogs || '0'} / {rawAcademic.education_gaps || 'None'}
                       </span>
                     </div>
                     <div className="flex">
                       <span className="w-32 text-[#64748b] shrink-0">Budget</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-medium text-[#101d37]">
-                        {selectedStudent.academic.budget}
+                        {rawProfile?.budget || selectedStudent.academic.budget}
                       </span>
                     </div>
                   </div>
@@ -1157,7 +1890,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
               </div>
 
               {/* Card 3: Program Preferences */}
-              <div className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs flex flex-col justify-between">
+              <div id="profile-program" className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
@@ -1165,7 +1898,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                       <span>Program Preferences</span>
                     </div>
                     <button
-                      onClick={() => onEditLead && onEditLead(studentAsLead(selectedStudent))}
+                      onClick={openProgramEdit}
                       className="flex items-center gap-1 text-[11px] text-[#087cf5] hover:underline font-semibold"
                     >
                       <Edit2 className="w-3 h-3" />
@@ -1177,48 +1910,62 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                     <div className="flex">
                       <span className="w-28 text-[#64748b] shrink-0">Country</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.country}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.country || selectedStudent.country}</span>
                     </div>
                     <div className="flex">
                       <span className="w-28 text-[#64748b] shrink-0">Course Level</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.courseLevel}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.course_level || selectedStudent.courseLevel}</span>
                     </div>
                     <div className="flex">
                       <span className="w-28 text-[#64748b] shrink-0">Preferred Course</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.preferredCourse}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.preferred_course || selectedStudent.preferredCourse}</span>
                     </div>
                     <div className="flex">
                       <span className="w-28 text-[#64748b] shrink-0">Alternative Courses</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <div className="font-medium text-[#101d37]">
-                        {selectedStudent.alternativeCourses.map((c, i) => (
-                          <div key={i}>{c}</div>
-                        ))}
+                        {alternativeCourseList.length > 0
+                          ? alternativeCourseList.map((c, i) => <div key={i}>{c}</div>)
+                          : '-'}
                       </div>
+                    </div>
+                    <div className="flex">
+                      <span className="w-28 text-[#64748b] shrink-0">Target University</span>
+                      <span className="text-[#64748b] mr-1">:</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.target_university || selectedStudent.targetUniversity}</span>
                     </div>
                     <div className="flex">
                       <span className="w-28 text-[#64748b] shrink-0">Target Intake</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.intake}</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.intake || selectedStudent.intake}</span>
                     </div>
                     <div className="flex">
-                      <span className="w-28 text-[#64748b] shrink-0">Intake Deadline</span>
+                      <span className="w-28 text-[#64748b] shrink-0">Budget</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">Varies by University</span>
+                      <span className="font-medium text-[#101d37]">{rawProfile?.budget || '-'}</span>
                     </div>
-                    <div className="flex">
+                    <div className="flex items-start">
                       <span className="w-28 text-[#64748b] shrink-0">Notes</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">Interested in scholarship</span>
+                      <span className="font-medium text-[#101d37] flex-1">
+                        {(rawCounselling as any).notes || '-'}
+                      </span>
+                      <button
+                        onClick={openCounsellingNotesEdit}
+                        className="ml-1 text-[#087cf5] hover:underline"
+                        title="Edit counselling notes in SQLite"
+                      >
+                        <Edit2 className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* Card 4: Payment & Agreement */}
-              <div className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs flex flex-col justify-between">
+              <div id="profile-payment" className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
@@ -1226,7 +1973,7 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                       <span>Payment & Agreement</span>
                     </div>
                     <button
-                      onClick={() => onEditLead && onEditLead(studentAsLead(selectedStudent))}
+                      onClick={openPaymentEdit}
                       className="flex items-center gap-1 text-[11px] text-[#087cf5] hover:underline font-semibold"
                     >
                       <Edit2 className="w-3 h-3" />
@@ -1239,44 +1986,50 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                       <span className="w-28 text-[#64748b] shrink-0">Service Package</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-medium text-[#101d37]">
-                        {selectedStudent.payment.servicePackage}
+                        {rawApproval.service_package || 'Standard Counselling Package'}
                       </span>
                     </div>
                     <div className="flex items-center">
                       <span className="w-28 text-[#64748b] shrink-0">Agreement Status</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="px-1.5 py-0.2 rounded bg-[#dcfce7] text-[#15803d] font-semibold text-[10px]">
-                        {selectedStudent.payment.agreementStatus}
+                      <span
+                        className={`px-1.5 py-0.2 rounded font-semibold text-[10px] ${
+                          rawApproval.agreement_signed || /signed/i.test(rawApproval.agreement_status || '')
+                            ? 'bg-[#dcfce7] text-[#15803d]'
+                            : 'bg-[#fef3c7] text-[#d97706]'
+                        }`}
+                      >
+                        {rawApproval.agreement_status || (rawApproval.agreement_signed ? 'Signed' : 'Pending')}
                       </span>
                     </div>
                     <div className="flex">
                       <span className="w-28 text-[#64748b] shrink-0">Total Fee</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-bold text-[#101d37]">
-                        {selectedStudent.payment.totalFee}
+                        {rawApproval.total_fee || '-'}
                       </span>
                     </div>
                     <div className="flex">
                       <span className="w-28 text-[#64748b] shrink-0">Amount Paid</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-bold text-[#15803d]">
-                        {selectedStudent.payment.amountPaid}
+                        {rawApproval.amount_paid || '-'}
                       </span>
                     </div>
                     <div className="flex">
                       <span className="w-28 text-[#64748b] shrink-0">Balance</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="font-bold text-[#dc2626]">
-                        {selectedStudent.payment.balance}
+                        {rawApproval.balance || '-'}
                       </span>
                     </div>
                     <div className="flex">
                       <span className="w-28 text-[#64748b] shrink-0">Payment Schedule</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <div className="font-medium text-[#101d37] space-y-0.5">
-                        {selectedStudent.payment.schedule.map((item, idx) => (
-                          <div key={idx}>{item}</div>
-                        ))}
+                        {paymentSchedule.length > 0
+                          ? paymentSchedule.map((item, idx) => <div key={idx}>{item}</div>)
+                          : '-'}
                       </div>
                     </div>
                   </div>
@@ -1287,23 +2040,28 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
             {/* ROW 2: 2 Cards (University Applications & Offer Letters) */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 items-stretch">
               {/* Left Table: University Applications (7 cols) */}
-              <div className="lg:col-span-7 bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs flex flex-col justify-between">
+              <div id="profile-applications" className="lg:col-span-7 bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
                       <GraduationCap className="w-3.5 h-3.5 text-[#087cf5]" />
                       <span>University Applications</span>
                     </div>
-                    <button
-                      onClick={() => {
-                        if (onNavigate) onNavigate('applications');
-                        else setToastMessage('Redirecting to Application manager...');
-                      }}
-                      className="flex items-center gap-1 px-2.5 py-1 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[11px] font-semibold transition-colors shadow-xs"
-                    >
-                      <Plus className="w-3 h-3 stroke-[2.5]" />
-                      <span>Add Application</span>
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => focusSection('Applications', 'profile-applications')}
+                        className="text-[11px] text-[#087cf5] hover:underline font-semibold"
+                      >
+                        View All
+                      </button>
+                      <button
+                        onClick={() => openApplicationEdit()}
+                        className="flex items-center gap-1 px-2.5 py-1 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[11px] font-semibold transition-colors shadow-xs"
+                      >
+                        <Plus className="w-3 h-3 stroke-[2.5]" />
+                        <span>Add Application</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="overflow-x-auto pt-1">
@@ -1320,28 +2078,44 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
-                        {selectedStudent.applications.map((app) => (
-                          <tr key={app.id} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="py-2 px-2 text-[#64748b]">{app.id}</td>
-                            <td className="py-2 px-2 font-medium text-[#101d37]">{app.university}</td>
-                            <td className="py-2 px-2 text-[#52627a]">{app.program}</td>
-                            <td className="py-2 px-2 text-[#52627a]">{app.intake}</td>
-                            <td className="py-2 px-2 text-[#52627a]">{app.date}</td>
-                            <td className="py-2 px-2">
-                              <span className={`px-2 py-0.5 rounded-[4px] font-semibold text-[10.5px] ${app.statusColor}`}>
-                                {app.status}
-                              </span>
-                            </td>
-                            <td className="py-2 px-2 text-right">
-                              <button
-                                onClick={() => onNavigate && onNavigate('applications')}
-                                className="text-[#087cf5] hover:underline font-semibold"
-                              >
-                                View
-                              </button>
+                        {displayApplications.length > 0 ? (
+                          displayApplications.map((app, idx) => (
+                            <tr key={app.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-2 px-2 text-[#64748b]">{idx + 1}</td>
+                              <td className="py-2 px-2 font-medium text-[#101d37]">{app.university}</td>
+                              <td className="py-2 px-2 text-[#52627a]">{app.program}</td>
+                              <td className="py-2 px-2 text-[#52627a]">{app.intake}</td>
+                              <td className="py-2 px-2 text-[#52627a]">{app.date}</td>
+                              <td className="py-2 px-2">
+                                <span className={`px-2 py-0.5 rounded-[4px] font-semibold text-[10.5px] ${app.statusColor}`}>
+                                  {app.status}
+                                </span>
+                              </td>
+                              <td className="py-2 px-2 text-right">
+                                <button
+                                  onClick={() =>
+                                    openApplicationEdit({
+                                      id: app.id,
+                                      university: app.university,
+                                      program: app.program,
+                                      date: app.date,
+                                      status: app.status,
+                                    })
+                                  }
+                                  className="text-[#087cf5] hover:underline font-semibold"
+                                >
+                                  Edit
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={7} className="py-4 text-center text-[#64748b]">
+                              No applications in university_applications yet.
                             </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1349,19 +2123,22 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
               </div>
 
               {/* Right Table: Offer Letters (5 cols) */}
-              <div className="lg:col-span-5 bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs flex flex-col justify-between">
+              <div id="profile-offers" className="lg:col-span-5 bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
                       <Mail className="w-3.5 h-3.5 text-[#087cf5]" />
                       <span>Offer Letters</span>
                     </div>
-                    <button
-                      onClick={() => onNavigate && onNavigate('applications')}
-                      className="text-[11px] text-[#087cf5] hover:underline font-semibold"
-                    >
-                      View All
-                    </button>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openOfferEdit()}
+                        className="flex items-center gap-1 px-2 py-0.5 rounded-[4px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[10.5px] font-semibold transition-colors"
+                      >
+                        <Plus className="w-3 h-3 stroke-[2.5]" />
+                        <span>Add Offer</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="overflow-x-auto pt-1">
@@ -1377,31 +2154,48 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
-                        {selectedStudent.offers.map((off, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="py-2 px-2 font-medium text-[#101d37]">{off.university}</td>
-                            <td className="py-2 px-2 text-[#52627a]">{off.date}</td>
-                            <td className="py-2 px-2 text-[#52627a]">{off.type}</td>
-                            <td className="py-2 px-2 text-[#52627a] leading-tight">
-                              {off.conditions.map((c, i) => (
-                                <div key={i}>{c}</div>
-                              ))}
-                            </td>
-                            <td className="py-2 px-2">
-                              <span className={`px-2 py-0.5 rounded-[4px] font-semibold text-[10.5px] ${off.statusColor}`}>
-                                {off.status}
-                              </span>
-                            </td>
-                            <td className="py-2 px-2 text-right">
-                              <button
-                                onClick={() => onNavigate && onNavigate('applications')}
-                                className="text-[#087cf5] hover:underline font-semibold"
-                              >
-                                View
-                              </button>
+                        {displayOffers.length > 0 ? (
+                          displayOffers.map((off, idx) => (
+                            <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
+                              <td className="py-2 px-2 font-medium text-[#101d37]">{off.university}</td>
+                              <td className="py-2 px-2 text-[#52627a]">{off.date}</td>
+                              <td className="py-2 px-2 text-[#52627a]">{off.type}</td>
+                              <td className="py-2 px-2 text-[#52627a] leading-tight">
+                                {off.conditions.map((c, i) => (
+                                  <div key={i}>{c}</div>
+                                ))}
+                              </td>
+                              <td className="py-2 px-2">
+                                <span className={`px-2 py-0.5 rounded-[4px] font-semibold text-[10.5px] ${off.statusColor}`}>
+                                  {off.status}
+                                </span>
+                              </td>
+                              <td className="py-2 px-2 text-right">
+                                <button
+                                  onClick={() =>
+                                    openOfferEdit({
+                                      id: off.id,
+                                      university: off.university,
+                                      date: off.date,
+                                      type: off.type,
+                                      conditions: off.conditions,
+                                      status: off.status,
+                                    })
+                                  }
+                                  className="text-[#087cf5] hover:underline font-semibold"
+                                >
+                                  Edit
+                                </button>
+                              </td>
+                            </tr>
+                          ))
+                        ) : (
+                          <tr>
+                            <td colSpan={6} className="py-4 text-center text-[#64748b]">
+                              No offers in offer_letters yet.
                             </td>
                           </tr>
-                        ))}
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1412,14 +2206,14 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
             {/* ROW 3: 4 Columns (Document Checklist, Scholarship & Pre-Enrolment, DoV & Visa, Recent Activities / Timeline) */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3 items-start">
               {/* Col 1: Document Checklist */}
-              <div className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
+              <div id="profile-documents" className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                   <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
                     <FileText className="w-3.5 h-3.5 text-[#087cf5]" />
                     <span>Document Checklist</span>
                   </div>
                   <button
-                    onClick={() => onNavigate && onNavigate('documentation')}
+                    onClick={() => focusSection('Documents', 'profile-documents')}
                     className="text-[11px] text-[#087cf5] hover:underline font-semibold"
                   >
                     View All
@@ -1437,25 +2231,41 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
-                      {selectedStudent.documents.map((row, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                          <td className="py-1.5 px-1.5 font-medium text-[#101d37]">{row.name}</td>
-                          <td className="py-1.5 px-1.5">
-                            <span className="px-1.5 py-0.2 rounded bg-[#dcfce7] text-[#15803d] font-semibold text-[10px]">
-                              {row.status}
-                            </span>
-                          </td>
-                          <td className="py-1.5 px-1.5 text-[#52627a]">{row.date}</td>
-                          <td className="py-1.5 px-1.5 text-right">
-                            <button
-                              onClick={() => onNavigate && onNavigate('documentation')}
-                              className="text-[#087cf5] hover:underline font-semibold"
-                            >
-                              View
-                            </button>
+                      {displayDocuments.length > 0 ? (
+                        displayDocuments.map((row, idx) => (
+                          <tr key={row.id || idx} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-1.5 px-1.5 font-medium text-[#101d37]">{row.name}</td>
+                            <td className="py-1.5 px-1.5">
+                              <span
+                                className={`px-1.5 py-0.2 rounded font-semibold text-[10px] ${
+                                  /verified|approved|received/i.test(row.status)
+                                    ? 'bg-[#dcfce7] text-[#15803d]'
+                                    : /re-upload|pending/i.test(row.status)
+                                      ? 'bg-[#fef3c7] text-[#d97706]'
+                                      : 'bg-[#f1f5f9] text-[#64748b]'
+                                }`}
+                              >
+                                {row.status}
+                              </span>
+                            </td>
+                            <td className="py-1.5 px-1.5 text-[#52627a]">{row.date}</td>
+                            <td className="py-1.5 px-1.5 text-right">
+                              <button
+                                onClick={() => openDocumentEdit(row)}
+                                className="text-[#087cf5] hover:underline font-semibold"
+                              >
+                                Edit
+                              </button>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={4} className="py-4 text-center text-[#64748b]">
+                            No documents in documents_checklist yet.
                           </td>
                         </tr>
-                      ))}
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -1464,14 +2274,14 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
               {/* Col 2: Stacked Cards (Scholarship Process & Pre-Enrolment Universitaly) */}
               <div className="space-y-3">
                 {/* Top: Scholarship Process */}
-                <div className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
+                <div id="profile-scholarship" className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
                       <Lightbulb className="w-3.5 h-3.5 text-[#087cf5]" />
                       <span>Scholarship Process</span>
                     </div>
                     <button
-                      onClick={() => setToastMessage('Scholarship tracker opened')}
+                      onClick={openScholarshipEdit}
                       className="text-[11px] text-[#087cf5] hover:underline font-semibold"
                     >
                       View All
@@ -1488,31 +2298,39 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
-                        {selectedStudent.scholarships.map((sch, i) => (
-                          <tr key={i} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="py-1.5 px-1.5 font-medium text-[#101d37]">{sch.name}</td>
-                            <td className="py-1.5 px-1.5 text-[#52627a]">{sch.deadline}</td>
+                        {rawScholarship.scholarship_name ? (
+                          <tr className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-1.5 px-1.5 font-medium text-[#101d37]">{rawScholarship.scholarship_name}</td>
+                            <td className="py-1.5 px-1.5 text-[#52627a]">
+                              {(rawScholarship as any).application_deadline || '-'}
+                            </td>
                             <td className="py-1.5 px-1.5 text-right">
-                              <span className={`px-1.5 py-0.2 rounded font-semibold text-[10px] ${sch.statusColor}`}>
-                                {sch.status}
+                              <span className="px-1.5 py-0.2 rounded font-semibold text-[10px] bg-[#fef3c7] text-[#d97706]">
+                                {rawScholarship.status || 'Not Started'}
                               </span>
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          <tr>
+                            <td colSpan={3} className="py-4 text-center text-[#64748b]">
+                              No scholarship row in scholarships table yet.
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
                 </div>
 
                 {/* Bottom: Pre-Enrolment (Universitaly) */}
-                <div className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
+                <div id="profile-preenrolment" className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
                       <Monitor className="w-3.5 h-3.5 text-[#087cf5]" />
                       <span>Pre-Enrolment (Universitaly)</span>
                     </div>
                     <button
-                      onClick={() => setToastMessage('Universitaly portal sync active')}
+                      onClick={openPreEnrolmentEdit}
                       className="text-[11px] text-[#087cf5] hover:underline font-semibold"
                     >
                       View All
@@ -1530,35 +2348,43 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
-                        {selectedStudent.preEnrolment.map((pe, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/60 transition-colors">
-                            <td className="py-1.5 px-1.5 font-medium text-[#101d37]">{pe.step}</td>
+                        {rawPreEnrolment.universitaly_summary_code || rawPreEnrolment.status ? (
+                          <tr className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-1.5 px-1.5 font-medium text-[#101d37]">
+                              {rawPreEnrolment.universitaly_summary_code
+                                ? `Summary ${rawPreEnrolment.universitaly_summary_code}`
+                                : 'Universitaly Verification'}
+                            </td>
                             <td className="py-1.5 px-1.5">
                               <span
                                 className={`px-1.5 py-0.2 rounded font-semibold text-[10px] ${
-                                  pe.status === 'Completed'
+                                  /validated|issued|complete/i.test(rawPreEnrolment.status || '')
                                     ? 'bg-[#dcfce7] text-[#15803d]'
                                     : 'bg-[#fef3c7] text-[#d97706]'
                                 }`}
                               >
-                                {pe.status}
+                                {rawPreEnrolment.status || 'Not Started'}
                               </span>
                             </td>
-                            <td className="py-1.5 px-1.5 text-[#52627a]">{pe.date}</td>
+                            <td className="py-1.5 px-1.5 text-[#52627a]">
+                              {formatDbDate((rawPreEnrolment as any).updated_at)}
+                            </td>
                             <td className="py-1.5 px-1.5 text-right">
-                              {pe.date !== '-' ? (
-                                <button
-                                  onClick={() => setToastMessage(`Viewing ${pe.step}`)}
-                                  className="text-[#087cf5] hover:underline font-semibold"
-                                >
-                                  View
-                                </button>
-                              ) : (
-                                <span className="text-[#64748b]">-</span>
-                              )}
+                              <button
+                                onClick={openPreEnrolmentEdit}
+                                className="text-[#087cf5] hover:underline font-semibold"
+                              >
+                                Edit
+                              </button>
                             </td>
                           </tr>
-                        ))}
+                        ) : (
+                          <tr>
+                            <td colSpan={4} className="py-4 text-center text-[#64748b]">
+                              No pre-enrolment row in pre_enrolments yet.
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1568,14 +2394,14 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
               {/* Col 3: Stacked Cards (DoV / CIMEA & Visa Process) */}
               <div className="space-y-3">
                 {/* Top: DoV / CIMEA */}
-                <div className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
+                <div id="profile-dov" className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
                       <FileText className="w-3.5 h-3.5 text-[#087cf5]" />
                       <span>DoV / CIMEA</span>
                     </div>
                     <button
-                      onClick={() => setToastMessage('DoV verification ledger')}
+                      onClick={openDovEdit}
                       className="text-[11px] text-[#087cf5] hover:underline font-semibold"
                     >
                       View All
@@ -1586,41 +2412,43 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                     <div className="flex items-center">
                       <span className="w-36 text-[#64748b] shrink-0">Process Type</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.dov.processType}</span>
+                      <span className="font-medium text-[#101d37]">{rawLegalization.process_type || '-'}</span>
                     </div>
                     <div className="flex items-center">
                       <span className="w-36 text-[#64748b] shrink-0">Status</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="px-1.5 py-0.2 rounded font-semibold text-[10px] bg-[#f1f5f9] text-[#64748b]">
-                        {selectedStudent.dov.status}
+                        {rawLegalization.status || 'Not Started'}
                       </span>
                     </div>
                     <div className="flex">
-                      <span className="w-36 text-[#64748b] shrink-0">Required By Documents</span>
+                      <span className="w-36 text-[#64748b] shrink-0">CIMEA / DoV Ref</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.dov.requiredBy}</span>
+                      <span className="font-medium text-[#101d37]">{rawLegalization.cimea_diploma_ref || '-'}</span>
                     </div>
 
                     <div className="pt-2">
                       <button
-                        onClick={() => setToastMessage('DoV process initiated with Embassy.')}
+                        onClick={openDovEdit}
                         className="w-full py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[11.5px] font-semibold transition-colors shadow-xs"
                       >
-                        Start DoV Process
+                        {rawLegalization.status && rawLegalization.status !== 'Not Started'
+                          ? 'Manage DoV Process'
+                          : 'Start DoV Process'}
                       </button>
                     </div>
                   </div>
                 </div>
 
                 {/* Bottom: Visa Process */}
-                <div className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
+                <div id="profile-visa" className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
                   <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                     <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
                       <Plane className="w-3.5 h-3.5 text-[#087cf5]" />
                       <span>Visa Process</span>
                     </div>
                     <button
-                      onClick={() => setToastMessage('Visa appointment console')}
+                      onClick={openVisaEdit}
                       className="text-[11px] text-[#087cf5] hover:underline font-semibold"
                     >
                       View All
@@ -1631,32 +2459,34 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
                     <div className="flex items-center">
                       <span className="w-32 text-[#64748b] shrink-0">Appointment Date</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="text-[#64748b]">{selectedStudent.visa.appointmentDate}</span>
+                      <span className="text-[#64748b]">{rawVisa.appointment_date || '-'}</span>
                     </div>
                     <div className="flex items-center">
                       <span className="w-32 text-[#64748b] shrink-0">Application Status</span>
                       <span className="text-[#64748b] mr-1">:</span>
                       <span className="px-1.5 py-0.2 rounded font-semibold text-[10px] bg-[#f1f5f9] text-[#64748b]">
-                        {selectedStudent.visa.status}
+                        {rawVisa.decision || 'Not Started'}
                       </span>
                     </div>
                     <div className="flex items-center">
                       <span className="w-32 text-[#64748b] shrink-0">Visa Type</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="font-medium text-[#101d37]">{selectedStudent.visa.visaType}</span>
+                      <span className="font-medium text-[#101d37]">{rawVisa.visa_type || '-'}</span>
                     </div>
                     <div className="flex items-center">
                       <span className="w-32 text-[#64748b] shrink-0">VFS Reference</span>
                       <span className="text-[#64748b] mr-1">:</span>
-                      <span className="text-[#64748b]">{selectedStudent.visa.vfsReference}</span>
+                      <span className="text-[#64748b]">{rawVisa.vfs_reference_no || '-'}</span>
                     </div>
 
                     <div className="pt-2">
                       <button
-                        onClick={() => setToastMessage('Visa booking pipeline opened with VFS.')}
+                        onClick={openVisaEdit}
                         className="w-full py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[11.5px] font-semibold transition-colors shadow-xs"
                       >
-                        Start Visa Process
+                        {rawVisa.decision && rawVisa.decision !== 'Not Started'
+                          ? 'Manage Visa Process'
+                          : 'Start Visa Process'}
                       </button>
                     </div>
                   </div>
@@ -1664,31 +2494,63 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
               </div>
 
               {/* Col 4: Recent Activities / Timeline */}
-              <div className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
+              <div id="profile-timeline" className="bg-white rounded-[8px] border border-[#e5edf5] p-3 shadow-xs">
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100">
                   <div className="flex items-center gap-1.5 font-bold text-[#101d37] text-[12.5px]">
                     <Clock className="w-3.5 h-3.5 text-[#087cf5]" />
-                    <span>Recent Activities / Timeline</span>
+                    <span>Recent Activities & Audit Trail</span>
                   </div>
                   <button
-                    onClick={() => onNavigate && onNavigate('dashboard')}
+                    onClick={() => onNavigate && onNavigate('history')}
                     className="text-[11px] text-[#087cf5] hover:underline font-semibold"
                   >
-                    View All
+                    View All in History →
                   </button>
                 </div>
 
-                <div className="pt-2 space-y-3 text-[11px]">
-                  {selectedStudent.timeline.map((item, idx) => (
-                    <div key={idx} className="flex items-start gap-2">
-                      <span className={`w-2 h-2 rounded-full ${item.dotColor} mt-1 shrink-0`} />
-                      <div className="leading-snug">
-                        <span className="text-[#64748b]">{item.time} : </span>
-                        <span className="font-medium text-[#101d37]">{item.text} </span>
-                        <span className="text-[#64748b]">(by: {item.team})</span>
+                <div className="pt-2 space-y-2 text-[11px] max-h-[340px] overflow-y-auto pr-1 scrollbar-thin">
+                  {profileAudits.length > 0 ? (
+                    profileAudits.map((audit) => (
+                      <div key={audit.id} className="p-1.5 rounded bg-slate-50 border border-slate-100 hover:border-blue-200 transition-colors">
+                        <div className="flex items-center justify-between gap-1 text-[10px] text-[#64748b]">
+                          <span className="font-semibold text-[#087cf5]">
+                            {audit.field ? audit.field.replace(/_/g, ' ') : audit.action}
+                          </span>
+                          <span>{audit.createdAt ? audit.createdAt.slice(0, 16) : ''}</span>
+                        </div>
+                        <div className="text-[#101d37] font-medium mt-0.5 leading-snug">
+                          {audit.action === 'updated' ? (
+                            <span>
+                              Changed from <span className="line-through text-rose-500">{audit.oldValue || '(empty)'}</span> to <span className="text-emerald-600 font-semibold">{audit.newValue || '(empty)'}</span>
+                            </span>
+                          ) : audit.action === 'stage-changed' ? (
+                            <span>
+                              Stage/Status moved to <span className="text-violet-700 font-semibold">{audit.newValue}</span>
+                            </span>
+                          ) : (
+                            <span>{audit.newValue || audit.action}</span>
+                          )}
+                        </div>
+                        <div className="text-[9.5px] text-[#8496b0] mt-0.5 flex items-center justify-between">
+                          <span>by {audit.actorName || 'Staff'}</span>
+                          <span className="bg-slate-200/70 text-slate-700 px-1 rounded text-[9px]">{audit.portal || 'CRM'}</span>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))
+                  ) : displayTimeline.length > 0 ? (
+                    displayTimeline.map((item, idx) => (
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className={`w-2 h-2 rounded-full ${item.dotColor} mt-1 shrink-0`} />
+                        <div className="leading-snug">
+                          <span className="text-[#64748b]">{item.time} : </span>
+                          <span className="font-medium text-[#101d37]">{item.text} </span>
+                          <span className="text-[#64748b]">(by: {item.team})</span>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-[#64748b] text-center py-4">No audit changes or activities recorded yet.</div>
+                  )}
                 </div>
               </div>
             </div>

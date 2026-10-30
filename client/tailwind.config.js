@@ -42,6 +42,7 @@ export default {
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        display: ['Instrument Serif', 'Georgia', 'Times New Roman', 'serif'],
       },
       boxShadow: {
         'crm-card': '0 1px 3px 0 rgba(16, 29, 55, 0.04), 0 1px 2px -1px rgba(16, 29, 55, 0.04)',

@@ -194,3 +194,21 @@ export interface AnalyticsData {
   leadSources: Array<{ name: string; count: number; percentage: number; color: string }>;
   countryInterest: Array<{ country: string; count: number; flag: string; color: string }>;
 }
+
+export interface CalendarEvent {
+  id: string;
+  title: string;
+  type: 'counselling' | 'followup' | 'visa' | 'deadline' | 'document';
+  date: string; // YYYY-MM-DD
+  time: string; // e.g. "11:00 AM"
+  duration?: string;
+  studentName: string;
+  leadId?: string;
+  phone?: string;
+  countryInterest?: string;
+  counsellor: string;
+  mode: 'Phone Call' | 'In-Person' | 'Google Meet / Zoom' | 'WhatsApp';
+  priority: 'High' | 'Medium' | 'Low';
+  status: 'Scheduled' | 'Completed' | 'Pending';
+  notes?: string;
+}

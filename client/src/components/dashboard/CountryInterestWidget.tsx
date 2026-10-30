@@ -12,16 +12,17 @@ export const CountryInterestWidget: React.FC<CountryInterestWidgetProps> = ({
 }) => {
   const [selectedPeriod, setSelectedPeriod] = useState('This Month');
 
-  const countries = data && data.length > 0 ? data : [
-    { country: 'Italy', count: 16, flag: '🇮🇹', color: '#087cf5' },
-    { country: 'Germany', count: 10, flag: '🇩🇪', color: '#10b981' },
-    { country: 'Canada', count: 8, flag: '🇨🇦', color: '#eab308' },
-    { country: 'UK', count: 6, flag: '🇬🇧', color: '#ec4899' },
-    { country: 'Australia', count: 4, flag: '🇦🇺', color: '#a855f7' },
-    { country: 'Others', count: 4, flag: '🌐', color: '#94a3b8' },
+  const defaultCountries = [
+    { country: 'Italy', count: 0, flag: '🇮🇹', color: '#087cf5' },
+    { country: 'Germany', count: 0, flag: '🇩🇪', color: '#10b981' },
+    { country: 'Canada', count: 0, flag: '🇨🇦', color: '#eab308' },
+    { country: 'UK', count: 0, flag: '🇬🇧', color: '#ec4899' },
+    { country: 'Australia', count: 0, flag: '🇦🇺', color: '#a855f7' },
+    { country: 'Others', count: 0, flag: '🌐', color: '#94a3b8' },
   ];
 
-  const maxVal = Math.max(...countries.map((c) => c.count), 16);
+  const countries = data && data.length > 0 ? data : defaultCountries;
+  const maxVal = Math.max(...countries.map((c) => c.count), 1);
 
   return (
     <div className="bg-white rounded-[10px] border border-[#e5edf5] shadow-crm-card p-4 flex flex-col h-full w-full overflow-hidden">
@@ -45,7 +46,7 @@ export const CountryInterestWidget: React.FC<CountryInterestWidgetProps> = ({
       {/* Horizontal Progress Bars List */}
       <div className="flex-1 flex flex-col justify-center gap-[8px] py-1 min-h-0">
         {countries.map((item) => {
-          const widthPercent = Math.max((item.count / maxVal) * 100, 6);
+          const widthPercent = item.count > 0 ? Math.max((item.count / maxVal) * 100, 6) : 0;
           return (
             <button
               key={item.country}

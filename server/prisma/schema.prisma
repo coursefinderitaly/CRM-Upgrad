@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x", "debian-openssl-3.0.x"]
 }
 
 datasource db {
@@ -35,12 +36,12 @@ model Lead {
   intake               String?  @default("Sept 2026")
   budget               String?  @default("€ 8,000 – 15,000")
   universityType       String?  @default("Public / Private")
-  preferredCity        String?  @default("Rome / Milan")
+  preferredCity        String?
   leadSource           String   // Google Ads, Website, Referral, Instagram, Justdial, Others
   lastActivity         String   // e.g. "05 Oct 2025"
   nextFollowUp         String   // e.g. "10 Oct 2025"
-  nextFollowUpTime     String?  @default("11:00 AM")
-  nextFollowUpTask     String?  @default("Call to discuss university options")
+  nextFollowUpTime     String?
+  nextFollowUpTask     String?
   status               String   @default("New Lead") // New Lead, Contacted, Interested, Counselling, Enrolled, Follow-up, On Hold, Lost, Transferred
   avatarUrl            String?
   counsellorId         String?
@@ -48,25 +49,25 @@ model Lead {
   notes                String?
   
   // Academic details
-  tenthBoard           String?  @default("CBSE")
-  tenthPercentage      String?  @default("86.4%")
-  tenthYear            String?  @default("2016")
-  twelfthBoard         String?  @default("CBSE")
-  twelfthPercentage    String?  @default("84.2%")
-  twelfthYear          String?  @default("2018")
-  graduationDegree     String?  @default("B.Tech Computer Science")
-  graduationUniversity String?  @default("RGPV Bhopal")
-  graduationCgpa       String?  @default("8.2 CGPA")
-  graduationYear       String?  @default("2022")
-  backlogs             String?  @default("0")
-  educationGaps        String?  @default("None")
+  tenthBoard           String?
+  tenthPercentage      String?
+  tenthYear            String?
+  twelfthBoard         String?
+  twelfthPercentage    String?
+  twelfthYear          String?
+  graduationDegree     String?
+  graduationUniversity String?
+  graduationCgpa       String?
+  graduationYear       String?
+  backlogs             String?
+  educationGaps        String?
 
   // Test scores
-  testType             String?  @default("IELTS")
-  testOverallScore     String?  @default("7.5")
-  testDate             String?  @default("15 Jan 2025")
-  testScoresDetails    String?  @default("L: 8.0, R: 7.5, W: 7.0, S: 7.5")
-  testResultStatus     String?  @default("Passed")
+  testType             String?
+  testOverallScore     String?
+  testDate             String?
+  testScoresDetails    String?
+  testResultStatus     String?
 
   // Stage flags
   currentStage         String   @default("New Lead") // New Lead -> Counselling -> Enrolled -> Documentation -> Application

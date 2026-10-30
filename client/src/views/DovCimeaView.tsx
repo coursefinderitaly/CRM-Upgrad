@@ -25,7 +25,7 @@ import {
   QrCode,
   Award,
 } from 'lucide-react';
-import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
 import { WorkflowStageBanner } from '../components/workflow/WorkflowStageBanner';
 import { getStageById } from '../context/WorkflowContext';
 import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
@@ -124,7 +124,7 @@ export const DovCimeaView: React.FC<DovCimeaViewProps> = ({
   onOpenWhatsApp,
   onOpenEmail,
 }) => {
-  const studentList = students && students.length > 0 ? students : INITIAL_STUDENTS;
+  const studentList = students || [];
 
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -366,13 +366,15 @@ export const DovCimeaView: React.FC<DovCimeaViewProps> = ({
                 ))}
               </div>
 
-              <button
-                onClick={() => handleOpenStudent(studentList[0])}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[12px] font-semibold transition-colors shadow-xs"
-              >
-                <Stamp className="w-3.5 h-3.5 text-indigo-200" />
-                <span>Open Sample Legalization Workspace</span>
-              </button>
+              {studentList[0] && (
+                <button
+                  onClick={() => handleOpenStudent(studentList[0])}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[12px] font-semibold transition-colors shadow-xs"
+                >
+                  <Stamp className="w-3.5 h-3.5 text-indigo-200" />
+                  <span>Open Legalization Workspace ({studentList[0].name})</span>
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-2 pt-1 border-t border-slate-100">
@@ -451,7 +453,7 @@ export const DovCimeaView: React.FC<DovCimeaViewProps> = ({
                                 src={st.avatar}
                                 alt={st.name}
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).src = '/avatars/rahul.png';
+                                  (e.target as HTMLElement).style.visibility = 'hidden';
                                 }}
                                 className="w-10 h-10 aspect-square rounded-full object-cover border border-slate-200 shrink-0 shadow-2xs"
                               />
@@ -626,7 +628,7 @@ export const DovCimeaView: React.FC<DovCimeaViewProps> = ({
                   src={selectedStudent.avatar}
                   alt={selectedStudent.name}
                   onError={(e) => {
-                    (e.target as HTMLImageElement).src = '/avatars/rahul.png';
+                    (e.target as HTMLElement).style.visibility = 'hidden';
                   }}
                   className="w-12 h-12 aspect-square rounded-full object-cover border-2 border-indigo-500/30 shadow-xs"
                 />

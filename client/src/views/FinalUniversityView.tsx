@@ -28,7 +28,7 @@ import {
   HelpCircle,
   Lock,
 } from 'lucide-react';
-import { StudentRecord, INITIAL_STUDENTS } from '../services/studentsData';
+import { StudentRecord } from '../services/studentsData';
 import { WorkflowStageBanner } from '../components/workflow/WorkflowStageBanner';
 import { getStageById } from '../context/WorkflowContext';
 import { ActionConfirmModal } from '../components/modals/ActionConfirmModal';
@@ -67,121 +67,33 @@ interface FinalChoiceData {
   isLocked: boolean;
 }
 
-const getFinalChoiceForStudent = (student: StudentRecord): FinalChoiceData => {
-  const isBologna = student.country === 'Italy' || student.targetUniversity.toLowerCase().includes('bologna');
-  const isGermany = student.country === 'Germany';
-  const isUK = student.country === 'UK' || student.country === 'United Kingdom';
+const getFinalChoiceForStudent = (student: StudentRecord): FinalChoiceData | null => {
+  const offers = Array.isArray(student.offers) ? student.offers : [];
+  if (offers.length === 0) return null;
 
-  const options: UniversityOption[] = isGermany
-    ? [
-        {
-          id: 'tum',
-          name: 'Technical University of Munich (TUM)',
-          country: 'Germany',
-          course: student.preferredCourse || 'MSc Robotics & AI',
-          intake: student.intake || 'Winter 2026',
-          tuitionFee: '€ 0 (Tuition Free)',
-          scholarshipGrant: 'DAAD Stipend Eligible',
-          netPayable: '€ 142/semester (Admin fee)',
-          depositAmount: '€ 0',
-          deadline: '15 Jul 2026',
-          isSelected: true,
-        },
-        {
-          id: 'rwth',
-          name: 'RWTH Aachen University',
-          country: 'Germany',
-          course: 'MSc Mechanical Engineering',
-          intake: student.intake || 'Winter 2026',
-          tuitionFee: '€ 0 (Tuition Free)',
-          scholarshipGrant: 'Deutschlandstipendium',
-          netPayable: '€ 310/semester',
-          depositAmount: '€ 0',
-          deadline: '20 Jul 2026',
-          isSelected: false,
-        },
-      ]
-    : isUK
-    ? [
-        {
-          id: 'bham',
-          name: 'University of Birmingham',
-          country: 'UK',
-          course: student.preferredCourse || 'MSc Data Science',
-          intake: student.intake || 'Sept 2026',
-          tuitionFee: '£ 23,500/yr',
-          scholarshipGrant: '£ 3,000 Global Merit Award',
-          netPayable: '£ 20,500/yr',
-          depositAmount: '£ 2,000',
-          deadline: '10 Aug 2026',
-          isSelected: true,
-        },
-        {
-          id: 'sheff',
-          name: 'University of Sheffield',
-          country: 'UK',
-          course: 'MSc Advanced Computer Science',
-          intake: student.intake || 'Sept 2026',
-          tuitionFee: '£ 22,000/yr',
-          scholarshipGrant: '£ 2,500 International Merit',
-          netPayable: '£ 19,500/yr',
-          depositAmount: '£ 1,500',
-          deadline: '15 Aug 2026',
-          isSelected: false,
-        },
-      ]
-    : [
-        {
-          id: 'unibo',
-          name: 'University of Bologna',
-          country: 'Italy',
-          course: student.preferredCourse || 'MSc Artificial Intelligence',
-          intake: student.intake || 'Sept 2026',
-          tuitionFee: '€ 2,800/yr',
-          scholarshipGrant: '€ 1,500 Regional DSU Tuition Waiver',
-          netPayable: '€ 1,300/yr',
-          depositAmount: '€ 1,500',
-          deadline: '25 Jul 2026',
-          isSelected: true,
-        },
-        {
-          id: 'unipd',
-          name: 'University of Padova',
-          country: 'Italy',
-          course: 'MSc Computer Engineering',
-          intake: student.intake || 'Sept 2026',
-          tuitionFee: '€ 2,600/yr',
-          scholarshipGrant: '€ 1,200 Regional Waiver',
-          netPayable: '€ 1,400/yr',
-          depositAmount: '€ 1,200',
-          deadline: '30 Jul 2026',
-          isSelected: false,
-        },
-        {
-          id: 'polimi',
-          name: 'Politecnico di Milano',
-          country: 'Italy',
-          course: 'MSc Computer Science & Engineering',
-          intake: student.intake || 'Sept 2026',
-          tuitionFee: '€ 3,890/yr',
-          scholarshipGrant: 'Platinum Merit Scholarship',
-          netPayable: '€ 1,890/yr',
-          depositAmount: '€ 2,000',
-          deadline: '15 Jul 2026',
-          isSelected: false,
-        },
-      ];
+  const options: UniversityOption[] = offers.map((offer, index) => ({
+    id: `offer-${index + 1}`,
+    name: offer.university,
+    country: student.country,
+    course: student.preferredCourse || '-',
+    intake: student.intake || '-',
+    tuitionFee: '-',
+    scholarshipGrant: '-',
+    netPayable: '-',
+    depositAmount: '-',
+    deadline: '-',
+    isSelected: index === 0,
+  }));
 
-  const locked = student.stageNumber >= 8;
-
+  const selected = options[0];
   return {
-    selectedUniversity: options.find((o) => o.isSelected)?.name || options[0].name,
-    course: student.preferredCourse || options[0].course,
-    intake: student.intake || 'Sept 2026',
-    depositStatus: locked ? 'Deposit Verified' : 'Pending Transfer',
-    depositRef: 'SWIFT-IT26B-9912',
+    selectedUniversity: selected.name,
+    course: student.preferredCourse || '-',
+    intake: student.intake || '-',
+    depositStatus: 'Pending Transfer',
+    depositRef: '-',
     options,
-    isLocked: locked,
+    isLocked: student.stageNumber >= 8,
   };
 };
 
@@ -194,7 +106,7 @@ export const FinalUniversityView: React.FC<FinalUniversityViewProps> = ({
   onOpenEmail,
   onScheduleFollowUp,
 }) => {
-  const studentList = students && students.length > 0 ? students : INITIAL_STUDENTS;
+  const studentList = students || [];
 
   const [selectedStudent, setSelectedStudent] = useState<StudentRecord | null>(null);
   const [activeChoice, setActiveChoice] = useState<FinalChoiceData | null>(null);
@@ -263,13 +175,14 @@ export const FinalUniversityView: React.FC<FinalUniversityViewProps> = ({
 
     studentList.forEach((st) => {
       const choice = getFinalChoiceForStudent(st);
+      if (!choice) return;
       if (choice.isLocked) lockedCount++;
       else pendingCount++;
       if (choice.depositStatus === 'Deposit Verified') depositVerifiedCount++;
     });
 
     return {
-      total: studentList.length,
+      total: studentList.filter((st) => getFinalChoiceForStudent(st)).length,
       locked: lockedCount,
       depositVerified: depositVerifiedCount,
       pending: pendingCount,
@@ -280,6 +193,7 @@ export const FinalUniversityView: React.FC<FinalUniversityViewProps> = ({
   const filteredStudents = useMemo(() => {
     return studentList.filter((st) => {
       const choice = getFinalChoiceForStudent(st);
+      if (!choice) return false;
 
       if (countryFilter !== 'All' && st.country !== countryFilter) return false;
       if (statusFilter !== 'All' && choice.depositStatus !== statusFilter) return false;
@@ -433,14 +347,6 @@ export const FinalUniversityView: React.FC<FinalUniversityViewProps> = ({
                   Stage 7 Choice
                 </span>
               </div>
-
-              <button
-                onClick={() => handleOpenStudent(studentList[0])}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[12px] font-semibold transition-colors shadow-xs"
-              >
-                <Building2 className="w-3.5 h-3.5 text-purple-200" />
-                <span>Open Sample Final Choice Workspace</span>
-              </button>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-2 pt-1 border-t border-slate-100">
@@ -508,13 +414,14 @@ export const FinalUniversityView: React.FC<FinalUniversityViewProps> = ({
                   ) : (
                     filteredStudents.map((st) => {
                       const choice = getFinalChoiceForStudent(st);
+                      if (!choice) return null;
                       return (
                         <tr key={st.id} className="hover:bg-[#f8fbff] transition-colors group">
                           {/* Student */}
                           <td className="py-2.5 px-3">
                             <div className="flex items-center gap-2.5">
                               <img
-                                src={st.avatar || '/avatars/row_rahul.png'}
+                                src={st.avatar}
                                 alt={st.name}
                                 className="w-7 h-7 rounded-full object-cover border border-slate-200 shrink-0"
                                 onError={(e) => {
@@ -636,7 +543,7 @@ export const FinalUniversityView: React.FC<FinalUniversityViewProps> = ({
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <img
-                  src={selectedStudent.avatar || '/avatars/row_rahul.png'}
+                  src={selectedStudent.avatar}
                   alt={selectedStudent.name}
                   className="w-12 h-12 rounded-full object-cover border-2 border-purple-500 shadow-xs"
                 />

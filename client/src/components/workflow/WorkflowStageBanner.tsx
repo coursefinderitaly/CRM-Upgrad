@@ -72,7 +72,7 @@ export const WorkflowStageBanner: React.FC<WorkflowStageBannerProps> = ({
                       src={st.avatar}
                       alt={st.name}
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/avatars/row_rahul.png';
+                        (e.target as HTMLElement).style.visibility = 'hidden';
                       }}
                       className="w-4 h-4 aspect-square rounded-full object-cover border border-white/60 shrink-0"
                     />

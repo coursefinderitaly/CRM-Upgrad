@@ -6,7 +6,6 @@ import {
   Mail,
   Bell,
   ChevronDown,
-  Check,
   User,
   Settings,
   Key,
@@ -22,6 +21,7 @@ import {
 import { NotificationItem, Lead } from '../../types/crm';
 import { searchGlobal, markNotificationRead, markAllNotificationsRead } from '../../services/api';
 import { CalendarEvent, STORAGE_KEY, getInitialEvents } from '../../views/CalendarView';
+import { useAuth } from '../../context/AuthContext';
 
 interface HeaderProps {
   onToggleSidebar: () => void;
@@ -39,7 +39,6 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleSidebar,
   onAddNewLead,
   onOpenEmail,
-  onOpenWhatsApp,
   notifications,
   unreadCount,
   onSelectLead,
@@ -50,6 +49,8 @@ export const Header: React.FC<HeaderProps> = ({
   const [searchResults, setSearchResults] = useState<Lead[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearchDropdown, setShowSearchDropdown] = useState(false);
+
+  const { user, activePortal, logout, switchPortal } = useAuth();
 
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -302,20 +303,6 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
 
-        {/* WhatsApp Icon */}
-        <button
-          onClick={onOpenWhatsApp}
-          className="w-8 h-8 rounded-full bg-[#25D366] hover:bg-[#20ba59] text-white flex items-center justify-center shadow-xs transition-colors"
-          title="Quick WhatsApp"
-        >
-          <svg
-            className="w-4 h-4 fill-current"
-            viewBox="0 0 24 24"
-          >
-            <path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.582 2.128 2.182-.573c.978.58 1.911.928 3.145.929 3.178 0 5.767-2.587 5.768-5.766 0-3.18-2.587-5.771-5.764-5.771zm3.392 8.244c-.144.405-.837.774-1.17.824-.312.045-.634.044-2.029-.533-1.428-.592-2.348-2.04-2.42-2.137-.071-.097-.58-.771-.58-1.469 0-.698.362-1.041.49-1.185.127-.143.281-.179.375-.179.094 0 .188.001.27.006.086.004.202-.033.315.241.119.287.406.994.442 1.066.035.072.059.156.012.25-.047.093-.071.152-.142.235-.07.083-.148.185-.212.249-.071.071-.145.148-.062.291.082.143.366.604.786.978.54.482.996.632 1.138.703.142.071.226.059.31-.036.084-.095.361-.421.457-.565.095-.144.19-.119.321-.072.131.048.832.392.975.464.143.071.238.107.273.167.036.059.036.345-.108.75z" />
-          </svg>
-        </button>
-
         {/* Notification Bell */}
         <div ref={notifRef} className="relative">
           <button
@@ -562,15 +549,25 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => setShowProfileMenu(!showProfileMenu)}
             className="flex items-center gap-2 hover:bg-slate-50 p-1 rounded-md transition-colors"
           >
-            <div className="w-7 h-7 rounded-full bg-[#07182c] text-white flex items-center justify-center text-[11px] font-bold border border-slate-300 shrink-0">
-              AG
+            <div
+              className="w-7 h-7 rounded-full text-white flex items-center justify-center text-[11px] font-bold border border-slate-300 shrink-0"
+              style={{ backgroundColor: activePortal.accentHex }}
+            >
+              {user?.name
+                ? user.name
+                    .split(' ')
+                    .map((n: string) => n[0])
+                    .join('')
+                    .slice(0, 2)
+                    .toUpperCase()
+                : 'U'}
             </div>
             <div className="text-left hidden md:block">
-              <div className="text-[12.5px] font-bold text-[#101d37] leading-tight">
-                Amit Gautam
+              <div className="text-[12.5px] font-bold text-[#101d37] leading-tight truncate max-w-[120px]">
+                {user?.name || 'Portal User'}
               </div>
               <div className="text-[10px] text-[#52627a] leading-tight">
-                Admin
+                {activePortal.title}
               </div>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-[#52627a]" />
@@ -578,11 +575,58 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Profile Dropdown */}
           {showProfileMenu && (
-            <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-[#e2e8f0] rounded-lg shadow-xl py-1 z-50">
+            <div className="absolute right-0 top-full mt-2 w-60 bg-white border border-[#e2e8f0] rounded-xl shadow-xl py-1 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
               <div className="px-3 py-2 border-b border-slate-100">
-                <div className="text-xs font-bold text-[#101d37]">Amit Gautam</div>
-                <div className="text-[10.5px] text-[#52627a]">amit.gautam@company.com</div>
+                <div className="text-xs font-bold text-[#101d37] truncate">{user?.name || 'Portal User'}</div>
+                <div className="text-[10.5px] text-[#52627a] truncate">{user?.email || 'user@crm.com'}</div>
+                <div
+                  className="mt-1 inline-block text-[9.5px] font-semibold px-2 py-0.5 rounded-full"
+                  style={{
+                    backgroundColor: `${activePortal.accentHex}15`,
+                    color: activePortal.accentHex,
+                  }}
+                >
+                  {activePortal.title}
+                </div>
               </div>
+              <div className="px-3 pt-2 pb-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                Switch Portal
+              </div>
+              <div className="px-1.5 pb-1 space-y-0.5">
+                {[
+                  { role: 'counsellor' as const, label: 'Counsellor Portal', desc: 'Leads & Onboarding' },
+                  { role: 'docs' as const, label: 'Document & Application', desc: 'Dossiers & My Students' },
+                  { role: 'admin' as const, label: 'Admin Command', desc: 'Executive Management' },
+                  { role: 'scholarship' as const, label: 'Scholarship Portal', desc: 'Grants & Merit' },
+                  { role: 'visa' as const, label: 'Visa Portal', desc: 'Embassy & Slots' },
+                  { role: 'upgrad' as const, label: 'UpGrad Partner', desc: 'Partner Channel' },
+                ].map((p) => (
+                  <button
+                    key={p.role}
+                    onClick={() => {
+                      switchPortal(p.role);
+                      setShowProfileMenu(false);
+                      if (onNavigate) {
+                        onNavigate(p.role === 'docs' ? 'leads' : 'dashboard');
+                      }
+                    }}
+                    className={`w-full px-2.5 py-1.5 rounded-lg text-left text-xs transition-colors flex items-center justify-between ${
+                      activePortal.role === p.role
+                        ? 'bg-blue-50 text-blue-800 font-bold border border-blue-200'
+                        : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-semibold leading-tight text-[11.5px]">{p.label}</div>
+                      <div className="text-[9.5px] text-slate-400">{p.desc}</div>
+                    </div>
+                    {activePortal.role === p.role && (
+                      <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+              <div className="border-t border-slate-100 my-1" />
               <button
                 onClick={() => {
                   setActiveModal('profile');
@@ -841,7 +885,7 @@ export const Header: React.FC<HeaderProps> = ({
               <button
                 onClick={() => {
                   setActiveModal(null);
-                  window.location.reload();
+                  logout();
                 }}
                 className="px-4 py-1.5 bg-red-600 text-white text-xs font-semibold rounded-lg hover:bg-red-700"
               >
