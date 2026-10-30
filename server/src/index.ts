@@ -2233,6 +2233,25 @@ app.post('/api/communications/whatsapp', async (req, res) => {
   }
 });
 
+// SERVE THE BUILT FRONTEND (production / single-app deployment)
+// In dev, Vite serves the client on :5173 and proxies /api here. In production
+// this Express process serves both the API and client/dist so one Node app is enough.
+const clientDistCandidates = [
+  path.resolve(process.cwd(), 'client/dist'), // start from repo root (production)
+  path.resolve(__dirname, '../../client/dist'), // dev: server/src -> repo/client/dist
+  path.resolve(__dirname, '../../../../client/dist'), // compiled: server/dist/server/src -> repo/client/dist
+];
+const clientDist = clientDistCandidates.find((dir) => fs.existsSync(path.join(dir, 'index.html')));
+
+if (clientDist) {
+  console.log(`📦 Serving built frontend from ${clientDist}`);
+  app.use(express.static(clientDist));
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
+
 // START SERVER
 app.listen(PORT, async () => {
   console.log(`🚀 CRM API Server running on http://localhost:${PORT}`);

@@ -3,8 +3,23 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 
-// Path to student_profile root directory
-export const DB_DIR = path.resolve(__dirname);
+// Path to student_profile root directory.
+// In development __dirname is <repo>/student_profile.
+// In a compiled build __dirname is <repo>/server/dist/student_profile, so walk
+// back to the real data folder instead of creating an empty one inside dist.
+function resolveDbDir(): string {
+  if (process.env.STUDENT_PROFILE_DIR) {
+    return path.resolve(process.env.STUDENT_PROFILE_DIR);
+  }
+  if (__dirname.includes(`${path.sep}dist${path.sep}`)) {
+    const repoRoot = path.resolve(__dirname, '../../..');
+    const candidate = path.join(repoRoot, 'student_profile');
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return path.resolve(__dirname);
+}
+
+export const DB_DIR = resolveDbDir();
 export const SCHEMA_PATH = path.join(DB_DIR, 'schema.sql');
 
 // Dedicated folder inside student_profile for operational SQLite databases

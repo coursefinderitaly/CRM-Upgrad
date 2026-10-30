@@ -2,11 +2,11 @@
   "name": "crm-server",
   "version": "1.0.0",
   "description": "Study Abroad CRM Backend API",
-  "main": "dist/index.js",
+  "main": "dist/server/src/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/server/src/index.js",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "seed": "tsx src/seed.ts",
