@@ -673,9 +673,9 @@ const STUDENTS = [
             counsellor_name: 'Neha Sharma',
             enrollment_date: '10 Sep 2025',
             next_follow_up: '08 Nov 2026',
-            overall_status: 'Documentation',
-            current_stage: 'Documentation Verification In Progress',
-            stage_number: 4,
+            overall_status: 'Contacted',
+            current_stage: 'Contacted — Dossier Prepared',
+            stage_number: 1,
             priority: 'High',
         },
         academic: {

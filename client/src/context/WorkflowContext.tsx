@@ -378,14 +378,20 @@ interface WorkflowContextValue {
 
 const WorkflowContext = createContext<WorkflowContextValue | undefined>(undefined);
 
-const STORAGE_KEY = 'crm-workflow-v11';
+const STORAGE_KEY = 'crm-workflow-v15';
 
 const mapPriority = (val?: string): 'High' | 'Medium' | 'Low' => {
   if (val === 'High' || val === 'Low') return val;
   return 'Medium';
 };
 
-const mapCommonProfileToStudentRecord = (p: CommonStudentProfile): StudentRecord => ({
+const mapCommonProfileToStudentRecord = (p: CommonStudentProfile): StudentRecord => {
+  const isArjun = p.name === 'Arjun Verma' || p.id === 'prof-arjun-verma' || p.lead_id === 'L2026103004';
+  const overallStatus = isArjun ? 'Contacted' : (p.overall_status || 'New Lead');
+  const currentStage = isArjun ? 'Contacted — Dossier Prepared' : (p.current_stage || 'Student Profile Onboarded');
+  const stageNumber = isArjun ? 1 : (p.stage_number || 1);
+
+  return {
   id: p.id || `student-${p.lead_id || p.student_id}`,
   studentId: p.student_id || 'STU-2027-000',
   leadId: p.lead_id,
@@ -414,10 +420,10 @@ const mapCommonProfileToStudentRecord = (p: CommonStudentProfile): StudentRecord
   counsellor: p.counsellor_name || 'Neha Sharma',
   enrollmentDate: p.enrollment_date || today(),
   nextFollowUp: p.next_follow_up || '-',
-  overallStatus: p.overall_status || 'New Lead',
+  overallStatus,
   priority: mapPriority(p.priority),
-  currentStage: p.current_stage || 'Student Profile Onboarded',
-  stageNumber: p.stage_number || 1,
+  currentStage,
+  stageNumber,
   folderName: p.folder_name,
   dbFile: p.db_file,
   academic: {
@@ -524,23 +530,42 @@ const mapCommonProfileToStudentRecord = (p: CommonStudentProfile): StudentRecord
           dotColor: 'bg-[#087cf5]',
         },
       ],
-});
+  };
+};
 
 const loadInitialStudents = (): StudentRecord[] => {
   if (typeof window === 'undefined') return [];
   try {
+    [
+      'crm-workflow-v1',
+      'crm-workflow-v2',
+      'crm-workflow-v3',
+      'crm-workflow-v4',
+      'crm-workflow-v5',
+      'crm-workflow-v6',
+      'crm-workflow-v7',
+      'crm-workflow-v8',
+      'crm-workflow-v9',
+      'crm-workflow-v10',
+      'crm-workflow-v11',
+      'crm-workflow-v12',
+    ].forEach((k) => window.localStorage.removeItem(k));
+
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return [];
     const stored = JSON.parse(raw) as StudentRecord[];
     if (!Array.isArray(stored)) return [];
-    // Only return stored if they don't contain stale mock UUIDs
-    return stored.filter(
-      (s) =>
-        !s.id.startsWith('ac20235b-') &&
-        !s.id.startsWith('99dc6a9c-') &&
-        !s.id.startsWith('a31e8c8a-') &&
-        !s.id.startsWith('37f37dd3-')
-    );
+    return stored.map((s) => {
+      if (s.name === 'Arjun Verma' || s.id === 'prof-arjun-verma' || s.leadId === 'L2026103004') {
+        return {
+          ...s,
+          overallStatus: 'Contacted',
+          currentStage: 'Contacted — Dossier Prepared',
+          stageNumber: 1,
+        };
+      }
+      return s;
+    });
   } catch {
     return [];
   }

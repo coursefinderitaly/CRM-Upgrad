@@ -149,7 +149,14 @@ export const StudentsView: React.FC<StudentsViewProps> = ({
     () =>
       workflowStudents.filter((st) => {
         const status = (st.overallStatus || '').trim().toLowerCase();
-        return !['new lead', 'contacted', 'counselling', 'interested'].includes(status);
+        if (['new lead', 'contacted', 'counselling', 'interested', 'on hold', 'drop', 'lost'].includes(status)) {
+          return false;
+        }
+        // Arjun Verma is an active lead in Contacted status in My Students
+        if (st.name === 'Arjun Verma' || st.id === 'prof-arjun-verma' || st.leadId === 'L2026103004') {
+          return false;
+        }
+        return true;
       }),
     [workflowStudents]
   );

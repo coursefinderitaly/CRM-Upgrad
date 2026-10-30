@@ -189,28 +189,25 @@ export const LoginView: React.FC = () => {
                   onClick={() => handleSelectDemo(acc)}
                   title={isEnabled ? acc.title : `${acc.title} (disabled)`}
                   style={{ animationDelay: `${0.1 + i * 0.05}s` }}
-                  className={`login-fade-up group flex items-center gap-2.5 rounded-2xl border px-3.5 py-3 text-left transition-all duration-300 ease-out ${
-                    isSelected
+                  className={`login-fade-up group flex items-center gap-2.5 rounded-2xl border px-3.5 py-3 text-left transition-all duration-300 ease-out ${isSelected
                       ? 'border-[#5EA9FF]/60 bg-gradient-to-b from-[#3D9BFF]/25 to-[#1668E3]/15 shadow-[0_10px_30px_-12px_rgba(32,118,240,0.9)]'
                       : isEnabled
                         ? 'border-white/[0.09] bg-white/[0.045] hover:-translate-y-[2px] hover:border-white/20 hover:bg-white/[0.075]'
                         : 'cursor-not-allowed border-white/[0.06] bg-white/[0.02] opacity-45'
-                  }`}
+                    }`}
                 >
                   <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${
-                      isSelected
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all duration-300 ${isSelected
                         ? 'bg-gradient-to-br from-[#5EA9FF] to-[#1668E3] text-white shadow-md shadow-blue-900/40'
                         : 'bg-white/[0.07] text-white/60 group-hover:bg-white/[0.11] group-hover:text-white/85'
-                    }`}
+                      }`}
                   >
                     <Icon className="h-[17px] w-[17px]" strokeWidth={2} />
                   </span>
                   <span className="min-w-0 flex-1">
                     <span
-                      className={`block truncate text-[12.5px] font-semibold leading-tight transition-colors ${
-                        isSelected ? 'text-white' : 'text-white/70 group-hover:text-white/90'
-                      }`}
+                      className={`block truncate text-[12.5px] font-semibold leading-tight transition-colors ${isSelected ? 'text-white' : 'text-white/70 group-hover:text-white/90'
+                        }`}
                     >
                       {acc.title}
                     </span>
@@ -219,11 +216,10 @@ export const LoginView: React.FC = () => {
                     </span>
                   </span>
                   <span
-                    className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full transition-all duration-300 ${
-                      isSelected
+                    className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full transition-all duration-300 ${isSelected
                         ? 'bg-[#5EA9FF] shadow-[0_0_10px_rgba(94,169,255,0.9)]'
                         : 'border-[1.5px] border-white/20'
-                    }`}
+                      }`}
                   >
                     {isSelected && (
                       <svg viewBox="0 0 12 12" className="h-2.5 w-2.5" fill="none">
@@ -327,10 +323,6 @@ export const LoginView: React.FC = () => {
           </div>
         </div>
       </main>
-
-      <footer className="relative z-10 pb-6 text-center">
-        <p className="font-mono text-[9px] tracking-[0.22em] text-white/25">© 2026 STUDY ABROAD CRM</p>
-      </footer>
     </div>
   );
 };

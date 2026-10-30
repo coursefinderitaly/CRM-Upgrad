@@ -264,6 +264,18 @@ export async function ensureEnrolledLeadsSynced() {
             'System Auto-Sync',
             'docs'
           );
+        } else if (!l.isEnrolled && l.status !== 'Enrolled' && prof.overall_status !== l.status && currentStageNum > 1) {
+          updateSection(
+            prof.id,
+            'profile',
+            {
+              overall_status: l.status,
+              current_stage: `${l.status} — Dossier Prepared`,
+              stage_number: 1,
+            },
+            'System Auto-Sync',
+            'counsellor'
+          );
         }
       }
     }
