@@ -1,0 +1,29 @@
+# Hostinger LiteSpeed / Apache Web Server Configuration
+Options -Indexes
+DirectoryIndex client/dist/index.html index.html index.php
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteBase /
+
+  # 1. Do not rewrite if the requested file or directory exists
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # 2. Allow API requests to pass through to backend
+  RewriteCond %{REQUEST_URI} ^/api/
+  RewriteRule ^ - [L]
+
+  # 3. If client/dist contains the requested static file, serve it directly
+  RewriteCond %{DOCUMENT_ROOT}/client/dist/$1 -f
+  RewriteRule ^(.*)$ client/dist/$1 [L]
+
+  # 4. If accessing root, serve client/dist/index.html
+  RewriteCond %{DOCUMENT_ROOT}/client/dist/index.html -f
+  RewriteRule ^$ client/dist/index.html [L]
+
+  # 5. Route all SPA browser routes to client/dist/index.html
+  RewriteCond %{DOCUMENT_ROOT}/client/dist/index.html -f
+  RewriteRule ^(.*)$ client/dist/index.html [L]
+</IfModule>

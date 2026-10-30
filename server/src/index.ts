@@ -2250,6 +2250,11 @@ if (clientDist) {
     if (req.path.startsWith('/api')) return next();
     res.sendFile(path.join(clientDist, 'index.html'));
   });
+} else {
+  console.warn('⚠️ client/dist not found. Checked:', clientDistCandidates);
+  app.get('/', (req, res) => {
+    res.status(200).send('<h1>CRM Server Running</h1><p>Frontend assets are compiling. Please wait a moment.</p>');
+  });
 }
 
 // START SERVER

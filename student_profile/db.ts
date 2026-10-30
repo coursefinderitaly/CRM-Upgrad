@@ -11,6 +11,10 @@ function resolveDbDir(): string {
   if (process.env.STUDENT_PROFILE_DIR) {
     return path.resolve(process.env.STUDENT_PROFILE_DIR);
   }
+  const fromCwd = path.resolve(process.cwd(), 'student_profile');
+  if (fs.existsSync(fromCwd) && fs.statSync(fromCwd).isDirectory()) {
+    return fromCwd;
+  }
   if (__dirname.includes(`${path.sep}dist${path.sep}`)) {
     const repoRoot = path.resolve(__dirname, '../../..');
     const candidate = path.join(repoRoot, 'student_profile');
