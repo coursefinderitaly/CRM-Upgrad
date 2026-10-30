@@ -3,6 +3,10 @@
   "version": "1.0.0",
   "private": true,
   "description": "Study Abroad CRM - Full Stack Enterprise Application",
+  "main": "app.js",
+  "engines": {
+    "node": ">=22 <25"
+  },
   "scripts": {
     "dev": "concurrently -n \"backend,frontend\" -c \"blue,green\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "dev:client": "npm run dev --prefix client",
@@ -13,7 +17,7 @@
     "seed": "npm run seed --prefix server",
     "seed:students": "npm run seed:students --prefix server",
     "start": "npm run start --prefix server",
-    "postinstall": "npm install --prefix server && npm install --prefix client"
+    "postinstall": "npm install --include=dev --prefix server && npm install --include=dev --prefix client"
   },
   "devDependencies": {
     "concurrently": "^9.2.5"
