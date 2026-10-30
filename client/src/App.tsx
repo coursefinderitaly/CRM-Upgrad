@@ -206,7 +206,7 @@ function CRMMain() {
       setSelectedLead((prev) => {
         if (leadsData.data.length === 0) return null;
         if (!prev) {
-          return leadsData.data.find((l) => l.leadId === 'L2025100501') || leadsData.data[0];
+          return leadsData.data.find((l) => l.leadId === 'L2026103004') || leadsData.data[0];
         }
         return (
           leadsData.data.find((l) => l.id === prev.id || l.leadId === prev.leadId) ||
@@ -241,7 +241,7 @@ function CRMMain() {
         setTabCounts(res.tabCounts);
         setSelectedLead((prev) => {
           if (res.data.length === 0) return null;
-          if (!prev) return res.data.find((l) => l.leadId === 'L2025100501') || res.data[0];
+          if (!prev) return res.data.find((l) => l.leadId === 'L2026103004') || res.data[0];
           return res.data.find((l) => l.id === prev.id || l.leadId === prev.leadId) || res.data[0];
         });
       })

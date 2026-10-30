@@ -328,7 +328,7 @@ export async function createLead(leadData: Partial<Lead>): Promise<Lead> {
   const nextIdNum = leads.length + 1;
   const newLead: Lead = {
     id: `lead-${Date.now()}`,
-    leadId: `L202510${nextIdNum < 10 ? '0' + nextIdNum : nextIdNum}`,
+    leadId: `L202610${nextIdNum < 10 ? '0' + nextIdNum : nextIdNum}`,
     studentName: leadData.studentName || 'New Student',
     phone: leadData.phone || '+91 99999 99999',
     email: leadData.email || 'student@example.com',
