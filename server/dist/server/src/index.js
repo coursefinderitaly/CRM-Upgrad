@@ -17,7 +17,9 @@ const db_1 = require("../../student_profile/db");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const prisma = new client_1.PrismaClient();
-const PORT = Number(process.env.PORT) || 5000;
+const rawPort = process.env.PORT;
+const isSocket = typeof rawPort === 'string' && (rawPort.startsWith('/') || rawPort.startsWith('\\\\'));
+const numericPort = Number(rawPort) || 5000;
 app.use((0, cors_1.default)());
 app.use(express_1.default.json({ limit: '10mb' }));
 app.use(express_1.default.urlencoded({ limit: '10mb', extended: true }));
@@ -2034,8 +2036,7 @@ else {
     });
 }
 // START SERVER
-app.listen(PORT, '0.0.0.0', async () => {
-    console.log(`🚀 CRM API Server running on http://0.0.0.0:${PORT}`);
+async function onServerStart() {
     try {
         await (0, mongodb_1.connectMongoDB)();
         await (0, UserModel_1.initializeDefaultUsers)();
@@ -2045,4 +2046,16 @@ app.listen(PORT, '0.0.0.0', async () => {
     catch (err) {
         console.warn('⚠️ Server startup initialization warning:', err);
     }
-});
+}
+if (isSocket && rawPort) {
+    app.listen(rawPort, async () => {
+        console.log(`🚀 CRM API Server listening on Passenger socket: ${rawPort}`);
+        await onServerStart();
+    });
+}
+else {
+    app.listen(numericPort, '0.0.0.0', async () => {
+        console.log(`🚀 CRM API Server running on http://0.0.0.0:${numericPort}`);
+        await onServerStart();
+    });
+}

@@ -1,5 +1,13 @@
 import { AnalyticsData, FollowUp, Lead, NotificationItem, Task, DocumentItem, CalendarEvent } from '../types/crm';
 import { PORTAL_CONFIGS, UserRole } from '../types/auth';
+import {
+  CATALOG_PROFILES,
+  CATALOG_LEADS,
+  CATALOG_STUDENTS,
+  CATALOG_TASKS,
+  CATALOG_CALENDAR,
+  CATALOG_AUDIT,
+} from './studentProfilesCatalog';
 
 const BASE_URL = (import.meta.env.VITE_API_URL as string) || '/api';
 
@@ -38,7 +46,7 @@ const isProductionFrontendOnly =
   !import.meta.env.VITE_API_URL;
 
 // Safe fetch wrapper: checks JSON content-type and parses safely inside try/catch
-async function safeFetchJson<T>(url: string, options?: RequestInit, timeoutMs = 10000): Promise<T | null> {
+async function safeFetchJson<T>(url: string, options?: RequestInit, timeoutMs = 2000): Promise<T | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -46,7 +54,7 @@ async function safeFetchJson<T>(url: string, options?: RequestInit, timeoutMs = 
     clearTimeout(timer);
     if (!res.ok) return null;
     const contentType = res.headers.get('content-type') || '';
-    // If the server returned HTML (e.g., an SPA index.html rewrite), it is NOT valid JSON
+    // If the server returned HTML (e.g., an SPA index.html rewrite or 503 error), it is NOT valid JSON
     if (!contentType.includes('application/json')) {
       return null;
     }
@@ -64,12 +72,14 @@ function getLocalLeads(): Lead[] {
     const stored = localStorage.getItem('crm_leads_v3');
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
     }
   } catch (e) {
     console.error('Error reading crm_leads_v3', e);
   }
-  return [];
+  // Initialize from student profiles folder catalog & seed storage
+  saveLocalLeads(CATALOG_LEADS);
+  return CATALOG_LEADS;
 }
 
 function saveLocalLeads(leads: Lead[]) {
@@ -85,15 +95,15 @@ function getLocalTasks(): Task[] {
     const stored = localStorage.getItem('crm_tasks_v3');
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed)) {
-        const demoTaskIds = new Set(['task-1', 'task-2', 'task-3', 'task-4']);
-        return parsed.filter((t: Task) => !demoTaskIds.has(t.id));
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
       }
     }
   } catch (e) {
     console.error('Error reading crm_tasks_v3', e);
   }
-  return [];
+  saveLocalTasks(CATALOG_TASKS);
+  return CATALOG_TASKS;
 }
 
 function saveLocalTasks(tasks: Task[]) {
@@ -629,9 +639,12 @@ export async function fetchCalendarEvents(startDate?: string, endDate?: string):
 
   try {
     const cached = localStorage.getItem(CALENDAR_STORAGE_KEY);
-    if (cached) return JSON.parse(cached);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
   } catch (e) {}
-  return [];
+  return CATALOG_CALENDAR;
 }
 
 export async function createCalendarEvent(eventData: Partial<CalendarEvent>): Promise<CalendarEvent> {
@@ -727,14 +740,19 @@ export async function sendWhatsApp(data: { leadId?: string; phone: string; messa
 // ==========================================
 export async function fetchStudents(): Promise<any[]> {
   const remote = await safeFetchJson<any[]>(`${BASE_URL}/students`);
-  if (remote) return remote;
-  return [];
+  if (remote && Array.isArray(remote) && remote.length > 0) return remote;
+  return CATALOG_STUDENTS;
 }
 
 export async function fetchDocuments(): Promise<DocumentItem[]> {
   const remote = await safeFetchJson<DocumentItem[]>(`${BASE_URL}/documents`);
-  if (remote) return remote;
-  return [];
+  if (remote && Array.isArray(remote) && remote.length > 0) return remote;
+  const leads = getLocalLeads();
+  const docs: DocumentItem[] = [];
+  leads.forEach((l) => {
+    if (l.documents) docs.push(...l.documents);
+  });
+  return docs;
 }
 
 export async function updateDocumentStatus(id: string, status: string, notes?: string): Promise<DocumentItem> {
@@ -944,14 +962,22 @@ export interface CommonStudentProfile {
 
 export async function fetchCommonProfiles(): Promise<CommonStudentProfile[]> {
   const remote = await safeFetchJson<{ success: boolean; data: CommonStudentProfile[] }>(`${BASE_URL}/student-profiles`);
-  if (remote && remote.data) return remote.data;
-  return [];
+  if (remote && remote.data && remote.data.length > 0) return remote.data;
+  return CATALOG_PROFILES;
 }
 
 export async function fetchCommonProfileById(id: string): Promise<CommonStudentProfile | null> {
   const remote = await safeFetchJson<{ success: boolean; data: CommonStudentProfile }>(`${BASE_URL}/student-profiles/${encodeURIComponent(id)}`);
   if (remote && remote.data) return remote.data;
-  return null;
+  const found = CATALOG_PROFILES.find(
+    (p) =>
+      p.id === id ||
+      p.student_id === id ||
+      p.lead_id === id ||
+      (p.folder_name && p.folder_name.toLowerCase() === id.toLowerCase()) ||
+      p.phone.includes(id)
+  );
+  return found || null;
 }
 
 export async function createCommonProfile(profileData: Partial<CommonStudentProfile>): Promise<CommonStudentProfile | null> {
@@ -1124,8 +1150,8 @@ export async function fetchAudit(filters: AuditFilters = {}): Promise<{ total: n
   const remote = await safeFetchJson<{ success: boolean; total: number; entries: AuditEntry[] }>(
     `${BASE_URL}/audit${qs ? `?${qs}` : ''}`
   );
-  if (remote) return { total: remote.total || 0, entries: remote.entries || [] };
-  return { total: 0, entries: [] };
+  if (remote && remote.entries && remote.entries.length > 0) return { total: remote.total || remote.entries.length, entries: remote.entries };
+  return { total: CATALOG_AUDIT.length, entries: CATALOG_AUDIT };
 }
 
 export type HistoryRecord = AuditEntry;
