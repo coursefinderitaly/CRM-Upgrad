@@ -67,32 +67,48 @@ async function safeFetchJson<T>(url: string, options?: RequestInit, timeoutMs = 
 }
 
 // LocalStorage helpers for cache
+const LEADS_STORAGE_KEY = 'crm_leads_v5';
+const TASKS_STORAGE_KEY = 'crm_tasks_v5';
+const VALID_DISK_STUDENTS = new Set(['Ananya Sharma', 'Arjun Verma', 'Kavya Iyer', 'Rohan Mehta']);
+
+// Clean up any stale legacy caches with old dummy data
+try {
+  ['crm_leads_v1', 'crm_leads_v2', 'crm_leads_v3', 'crm_leads_v4', 'crm_tasks_v1', 'crm_tasks_v2', 'crm_tasks_v3', 'crm_tasks_v4'].forEach(
+    (k) => localStorage.removeItem(k)
+  );
+} catch (e) {}
+
 function getLocalLeads(): Lead[] {
   try {
-    const stored = localStorage.getItem('crm_leads_v3');
+    const stored = localStorage.getItem(LEADS_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Enforce strictly only the 4 students matching the Hostinger student_profile disk folders
+        const cleanLeads = parsed.filter((l) => VALID_DISK_STUDENTS.has(l.studentName));
+        if (cleanLeads.length === 4) return cleanLeads;
+      }
     }
   } catch (e) {
-    console.error('Error reading crm_leads_v3', e);
+    console.error('Error reading crm_leads', e);
   }
-  // Initialize from student profiles folder catalog & seed storage
+  // Initialize ONLY the 4 disk student profiles & save
   saveLocalLeads(CATALOG_LEADS);
   return CATALOG_LEADS;
 }
 
 function saveLocalLeads(leads: Lead[]) {
   try {
-    localStorage.setItem('crm_leads_v3', JSON.stringify(leads));
+    const cleanLeads = leads.filter((l) => VALID_DISK_STUDENTS.has(l.studentName));
+    localStorage.setItem(LEADS_STORAGE_KEY, JSON.stringify(cleanLeads.length > 0 ? cleanLeads : CATALOG_LEADS));
   } catch (e) {
-    console.error('Error saving crm_leads_v3', e);
+    console.error('Error saving crm_leads', e);
   }
 }
 
 function getLocalTasks(): Task[] {
   try {
-    const stored = localStorage.getItem('crm_tasks_v3');
+    const stored = localStorage.getItem(TASKS_STORAGE_KEY);
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length > 0) {
@@ -100,7 +116,7 @@ function getLocalTasks(): Task[] {
       }
     }
   } catch (e) {
-    console.error('Error reading crm_tasks_v3', e);
+    console.error('Error reading crm_tasks', e);
   }
   saveLocalTasks(CATALOG_TASKS);
   return CATALOG_TASKS;
@@ -108,9 +124,9 @@ function getLocalTasks(): Task[] {
 
 function saveLocalTasks(tasks: Task[]) {
   try {
-    localStorage.setItem('crm_tasks_v3', JSON.stringify(tasks));
+    localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
   } catch (e) {
-    console.error('Error saving crm_tasks_v3', e);
+    console.error('Error saving crm_tasks', e);
   }
 }
 

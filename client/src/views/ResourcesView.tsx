@@ -189,7 +189,7 @@ export const ResourcesView: React.FC<ResourcesViewProps> = ({ onNavigate }) => {
   const [showAuthLetterModal, setShowAuthLetterModal] = useState(false);
 
   // Authorization Draft fields
-  const [authStudentName, setAuthStudentName] = useState('Rahul Sharma');
+  const [authStudentName, setAuthStudentName] = useState('Ananya Sharma');
   const [authPassportNo, setAuthPassportNo] = useState('Z6492104');
   const [authRepName, setAuthRepName] = useState('Priya Sharma');
   const [authRelationship, setAuthRelationship] = useState('Mother / Authorized Family Member');

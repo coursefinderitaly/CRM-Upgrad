@@ -551,7 +551,7 @@ export const UniversityShortlistingView: React.FC<UniversityShortlistingViewProp
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-[5px] bg-[#087cf5] hover:bg-[#006ee6] text-white text-[12px] font-semibold transition-colors shadow-xs"
                 >
                   <EyeIcon className="w-3.5 h-3.5" />
-                  <span>Sample Shortlist ({studentList[0]?.name || 'Rahul Sharma'})</span>
+                  <span>Sample Shortlist ({studentList[0]?.name || 'Ananya Sharma'})</span>
                 </button>
               </div>
             </div>

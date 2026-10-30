@@ -34,6 +34,7 @@ import {
   updateCalendarEvent,
   deleteCalendarEvent,
 } from '../services/api';
+import { CATALOG_CALENDAR } from '../services/studentProfilesCatalog';
 
 export interface CalendarEvent {
   id: string;
@@ -53,292 +54,18 @@ export interface CalendarEvent {
   notes?: string;
 }
 
-export const STORAGE_KEY = 'crm-calendar-events-v2';
+export const STORAGE_KEY = 'crm-calendar-events-v5';
 
-// Generate realistic default calendar events for current and adjacent months
+export const VALID_DISK_STUDENTS = new Set([
+  'Ananya Sharma',
+  'Arjun Verma',
+  'Kavya Iyer',
+  'Rohan Mehta',
+]);
+
+// Return calendar events strictly for the 4 disk students
 export const getInitialEvents = (): CalendarEvent[] => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, '0');
-  
-  const formatDate = (day: number) => {
-    return `${year}-${month}-${String(day).padStart(2, '0')}`;
-  };
-
-  return [
-    {
-      id: 'evt-1',
-      title: 'Call Rahul Sharma - Italy Public Univ Docs',
-      type: 'followup',
-      date: formatDate(10),
-      time: '11:00 AM',
-      duration: '30 mins',
-      studentName: 'Rahul Sharma',
-      leadId: 'L2025100501',
-      phone: '+91 98765 43210',
-      countryInterest: 'Italy',
-      counsellor: 'Neha Sharma',
-      mode: 'Phone Call',
-      priority: 'High',
-      status: 'Scheduled',
-      notes: 'Review Sapienza and Politecnico di Milano transcript checklists.',
-    },
-    {
-      id: 'evt-2',
-      title: 'Counselling Session - Priya Singh',
-      type: 'counselling',
-      date: formatDate(10),
-      time: '12:30 PM',
-      duration: '45 mins',
-      studentName: 'Priya Singh',
-      leadId: 'L2025100402',
-      phone: '+91 87654 32109',
-      countryInterest: 'Germany',
-      counsellor: 'Neha Sharma',
-      mode: 'Google Meet / Zoom',
-      priority: 'High',
-      status: 'Scheduled',
-      notes: 'Evaluate TU Munich and RWTH Aachen MBA Innovation program details.',
-    },
-    {
-      id: 'evt-3',
-      title: 'IELTS Preparation Plan - Amit Kumar',
-      type: 'followup',
-      date: formatDate(10),
-      time: '02:00 PM',
-      duration: '20 mins',
-      studentName: 'Amit Kumar',
-      leadId: 'L2025100303',
-      phone: '+91 95432 16789',
-      countryInterest: 'Canada',
-      counsellor: 'Neha Sharma',
-      mode: 'WhatsApp',
-      priority: 'Medium',
-      status: 'Scheduled',
-      notes: 'Send November test slots and British Council study materials.',
-    },
-    {
-      id: 'evt-4',
-      title: 'Offer Acceptance Deadline - Sneha Patel',
-      type: 'deadline',
-      date: formatDate(10),
-      time: '04:00 PM',
-      duration: 'Deadline',
-      studentName: 'Sneha Patel',
-      leadId: 'L2025100504',
-      phone: '+91 99876 54321',
-      countryInterest: 'UK',
-      counsellor: 'Neha Sharma',
-      mode: 'Phone Call',
-      priority: 'High',
-      status: 'Scheduled',
-      notes: 'University of Manchester BSc Nursing conditional acceptance cutoff.',
-    },
-    {
-      id: 'evt-5',
-      title: 'Proposal & Shortlist - Rohit Verma',
-      type: 'followup',
-      date: formatDate(10),
-      time: '05:00 PM',
-      duration: '30 mins',
-      studentName: 'Rohit Verma',
-      leadId: 'L2025100205',
-      phone: '+91 91234 56789',
-      countryInterest: 'Australia',
-      counsellor: 'Neha Sharma',
-      mode: 'Google Meet / Zoom',
-      priority: 'Low',
-      status: 'Scheduled',
-      notes: 'Share university shortlist for Melbourne and Sydney July intake.',
-    },
-    {
-      id: 'evt-6',
-      title: 'Politecnico di Torino Intake Review - Kunal Joshi',
-      type: 'counselling',
-      date: formatDate(12),
-      time: '10:30 AM',
-      duration: '45 mins',
-      studentName: 'Kunal Joshi',
-      leadId: 'L20251007',
-      phone: '+91 98111 22334',
-      countryInterest: 'Italy',
-      counsellor: 'Amit Verma',
-      mode: 'In-Person',
-      priority: 'Medium',
-      status: 'Scheduled',
-      notes: 'MSc Mechanical Engineering syllabus mapping with Pune University.',
-    },
-    {
-      id: 'evt-7',
-      title: 'Winter Intake Portal Cutoff - Swati Pandey',
-      type: 'deadline',
-      date: formatDate(12),
-      time: '03:00 PM',
-      duration: 'Deadline',
-      studentName: 'Swati Pandey',
-      leadId: 'L20251022',
-      phone: '+91 98444 55667',
-      countryInterest: 'Germany',
-      counsellor: 'Neha Sharma',
-      mode: 'In-Person',
-      priority: 'High',
-      status: 'Scheduled',
-      notes: 'Upload certified translations of degree marksheet before portal lock.',
-    },
-    {
-      id: 'evt-8',
-      title: 'Italy Embassy Pre-Enrolment Cutoff - Siddharth Jain',
-      type: 'visa',
-      date: formatDate(14),
-      time: '11:00 AM',
-      duration: '60 mins',
-      studentName: 'Siddharth Jain',
-      leadId: 'L20251013',
-      phone: '+91 98999 11223',
-      countryInterest: 'Italy',
-      counsellor: 'Neha Sharma',
-      mode: 'Phone Call',
-      priority: 'High',
-      status: 'Scheduled',
-      notes: 'Universitaly portal pre-enrollment validation and DOV appointment.',
-    },
-    {
-      id: 'evt-9',
-      title: 'Canada PGWP & Fee Structure - Sanjay Reddy',
-      type: 'counselling',
-      date: formatDate(14),
-      time: '02:30 PM',
-      duration: '40 mins',
-      studentName: 'Sanjay Reddy',
-      leadId: 'L20251033',
-      phone: '+91 98333 44556',
-      countryInterest: 'Canada',
-      counsellor: 'Amit Verma',
-      mode: 'Google Meet / Zoom',
-      priority: 'Medium',
-      status: 'Scheduled',
-      notes: 'MSc Cloud Computing work permit rules and post-graduation visa path.',
-    },
-    {
-      id: 'evt-10',
-      title: 'APS India Certificate Document Review - Nikhil Shinde',
-      type: 'document',
-      date: formatDate(15),
-      time: '10:00 AM',
-      duration: '30 mins',
-      studentName: 'Nikhil Shinde',
-      leadId: 'L20251023',
-      phone: '+91 97222 33445',
-      countryInterest: 'Germany',
-      counsellor: 'Neha Sharma',
-      mode: 'In-Person',
-      priority: 'High',
-      status: 'Scheduled',
-      notes: 'Check professor authorization letter and DigiLocker marksheet authentication.',
-    },
-    {
-      id: 'evt-11',
-      title: 'UK Master in AI Program Discussion - Ashish Goel',
-      type: 'counselling',
-      date: formatDate(15),
-      time: '01:00 PM',
-      duration: '45 mins',
-      studentName: 'Ashish Goel',
-      leadId: 'L20251044',
-      phone: '+91 96111 88990',
-      countryInterest: 'UK',
-      counsellor: 'Neha Sharma',
-      mode: 'Phone Call',
-      priority: 'Medium',
-      status: 'Scheduled',
-      notes: 'Review Edinburgh, Bristol, and Southampton MSc admission requirements.',
-    },
-    {
-      id: 'evt-12',
-      title: 'Architecture Portfolio Submission - Ritu Mehra',
-      type: 'document',
-      date: formatDate(18),
-      time: '11:30 AM',
-      duration: 'Deadline',
-      studentName: 'Ritu Mehra',
-      leadId: 'L20251012',
-      phone: '+91 98888 77665',
-      countryInterest: 'Italy',
-      counsellor: 'Amit Verma',
-      mode: 'WhatsApp',
-      priority: 'Medium',
-      status: 'Scheduled',
-      notes: 'Politecnico di Milano architecture digital portfolio link dispatch.',
-    },
-    {
-      id: 'evt-13',
-      title: 'Campus France Interview Prep - Abhishek Pillai',
-      type: 'counselling',
-      date: formatDate(18),
-      time: '04:00 PM',
-      duration: '45 mins',
-      studentName: 'Abhishek Pillai',
-      leadId: 'L20251048',
-      phone: '+91 98222 33114',
-      countryInterest: 'France',
-      counsellor: 'Neha Sharma',
-      mode: 'Google Meet / Zoom',
-      priority: 'Medium',
-      status: 'Scheduled',
-      notes: 'Mock interview for EEF Campus France oral test and visa file.',
-    },
-    {
-      id: 'evt-14',
-      title: 'DSU Regional Scholarship Review - Megha Sen',
-      type: 'followup',
-      date: formatDate(20),
-      time: '02:00 PM',
-      duration: '30 mins',
-      studentName: 'Megha Sen',
-      leadId: 'L20251018',
-      phone: '+91 97777 66554',
-      countryInterest: 'Italy',
-      counsellor: 'Neha Sharma',
-      mode: 'Phone Call',
-      priority: 'High',
-      status: 'Scheduled',
-      notes: 'Verify family income certificate apostille and ISEE Parificato documentation.',
-    },
-    {
-      id: 'evt-15',
-      title: 'Canada Visa Biometrics Appointment - Girish Patil',
-      type: 'visa',
-      date: formatDate(22),
-      time: '12:00 PM',
-      duration: 'Appointment',
-      studentName: 'Girish Patil',
-      leadId: 'L20251035',
-      phone: '+91 96555 44332',
-      countryInterest: 'Canada',
-      counsellor: 'Amit Verma',
-      mode: 'In-Person',
-      priority: 'High',
-      status: 'Scheduled',
-      notes: 'VFS Global Ahmedabad appointment confirmation and document pouch.',
-    },
-    {
-      id: 'evt-16',
-      title: 'New Zealand Application Cutoff - Prateek Somani',
-      type: 'deadline',
-      date: formatDate(25),
-      time: '10:00 AM',
-      duration: 'Deadline',
-      studentName: 'Prateek Somani',
-      leadId: 'L20251049',
-      phone: '+91 95444 33221',
-      countryInterest: 'New Zealand',
-      counsellor: 'Neha Sharma',
-      mode: 'Phone Call',
-      priority: 'Medium',
-      status: 'Scheduled',
-      notes: 'University of Auckland Master of Construction Management round 1 deadline.',
-    },
-  ];
+  return (CATALOG_CALENDAR as CalendarEvent[]) || [];
 };
 
 interface CalendarViewProps {
@@ -373,10 +100,16 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
   // Events state with localStorage persistence
   const [events, setEvents] = useState<CalendarEvent[]>(() => {
     try {
-      const saved = localStorage.getItem('crm-calendar-events-v2');
+      ['crm-calendar-events-v1', 'crm-calendar-events-v2', 'crm-calendar-events-v3', 'crm-calendar-events-v4'].forEach((k) =>
+        localStorage.removeItem(k)
+      );
+      const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const filtered = parsed.filter((e) => !e.studentName || VALID_DISK_STUDENTS.has(e.studentName));
+          if (filtered.length > 0) return filtered;
+        }
       }
     } catch (e) {
       console.error('Error loading calendar events', e);
@@ -389,16 +122,18 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     fetchCalendarEvents()
       .then((serverEvents) => {
         if (serverEvents && serverEvents.length > 0) {
-          setEvents(serverEvents);
+          const filtered = serverEvents.filter((e) => !e.studentName || VALID_DISK_STUDENTS.has(e.studentName));
+          setEvents(filtered.length > 0 ? filtered : getInitialEvents());
         }
       })
       .catch((err) => console.error('Failed to load events from calendar.db:', err));
   }, []);
 
   const saveEvents = (updated: CalendarEvent[]) => {
-    setEvents(updated);
+    const filtered = updated.filter((e) => !e.studentName || VALID_DISK_STUDENTS.has(e.studentName));
+    setEvents(filtered);
     try {
-      localStorage.setItem('crm-calendar-events-v2', JSON.stringify(updated));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(filtered));
     } catch (e) {
       console.error('Error saving calendar events', e);
     }
@@ -435,8 +170,8 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
     setFormTitle('');
     setFormType('counselling');
     setFormTime('11:00 AM');
-    setFormStudentName(leads[0]?.studentName || 'Rahul Sharma');
-    setFormStudentPhone(leads[0]?.phone || '+91 98765 43210');
+    setFormStudentName(leads[0]?.studentName || 'Ananya Sharma');
+    setFormStudentPhone(leads[0]?.phone || '+91 98765 43211');
     setFormCountry(leads[0]?.countryInterest || 'Italy');
     setFormCounsellor('Neha Sharma');
     setFormMode('Phone Call');
@@ -1142,7 +877,7 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                   type="text"
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="e.g. Visa Appointment with Rahul Sharma, IELTS Plan"
+                  placeholder="e.g. Visa Appointment with Ananya Sharma, IELTS Plan"
                   className="w-full bg-[#f8fafc] border border-[#cbd5e1] focus:border-[#087cf5] focus:bg-white rounded-[6px] px-3 py-1.5 text-[12px] text-[#101d37] outline-none transition-all"
                 />
               </div>

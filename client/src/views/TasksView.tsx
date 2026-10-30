@@ -765,7 +765,7 @@ export const TasksView: React.FC<TasksViewProps> = ({
                   required
                   value={formTitle}
                   onChange={(e) => setFormTitle(e.target.value)}
-                  placeholder="e.g. Call Rahul Sharma regarding Italian Universitaly pre-enrolment"
+                  placeholder="e.g. Call Ananya Sharma regarding Italian Universitaly pre-enrolment"
                   className="w-full bg-[#f8fafc] border border-slate-300 rounded-lg p-2.5 text-xs text-[#101d37] outline-none focus:border-[#087cf5]"
                 />
               </div>

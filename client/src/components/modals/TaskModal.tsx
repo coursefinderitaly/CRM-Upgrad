@@ -73,7 +73,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({
               required
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Call Rahul Sharma"
+              placeholder="e.g. Call Arjun Verma"
               className="w-full p-2 border rounded"
             />
           </div>

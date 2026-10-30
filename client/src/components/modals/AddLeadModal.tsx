@@ -209,7 +209,7 @@ export const AddLeadModal: React.FC<AddLeadModalProps> = ({
                     setFieldErrors((prev) => ({ ...prev, studentName: undefined }));
                   }
                 }}
-                placeholder="e.g. Rahul Sharma"
+                placeholder="e.g. Arjun Verma"
                 maxLength={60}
                 className={`w-full p-2 border rounded-[6px] outline-none focus:border-[#087cf5] ${
                   fieldErrors.studentName ? 'border-red-400 bg-red-50/40' : 'border-slate-200'
